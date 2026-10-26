@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="A 90-second game: spot the fraud rings hidden in a synthetic loan network, then see how you did against a connection counter and a graph model.">
+<style>[hidden]{display:none!important} body{margin:0} img{max-width:100%}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<title>Find the Ring</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@700;900&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: one sheet of continuous green-bar computer paper on a dark desk, the way a bank's
+   fraud desk printed its case reports. The link chart is plotted on the paper; the reviewer's
+   notes and the summary print beside it. Deliberately single-theme: paper is paper. */
+:root {
+  --desk: #232b27;
+  --desk-2: #2c3631;
+  --paper: #f7f8f1;
+  --band: #e0ecd6;
+  --ink: #1b241f;
+  --ink-2: #4f5d55;
+  --rule: #a7b8a6;
+  --stamp: #c3312a;
+  --pen-blue: #2747a3;
+  --pen-violet: #6b3aa8;
+  --pencil: #7c877f;
+  --highlight: #f4d43a;
+  --stencil: "Big Shoulders Stencil Display", "Impact", "Arial Narrow", sans-serif;
+  --type: "Courier Prime", "Courier New", Courier, monospace;
+  --data: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --band-h: 26px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--desk); }
+body {
+  background: var(--desk)
+    radial-gradient(1200px 600px at 50% -10%, var(--desk-2), transparent 70%) no-repeat;
+  color: var(--ink);
+  font: 400 16px/var(--band-h) var(--type);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 22px 40px;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px dashed var(--pen-blue); outline-offset: 3px; }
+::selection { background: var(--highlight); }
+
+/* ---------- the sheet ---------- */
+.sheet {
+  position: relative; max-width: 1180px; margin: 0 auto;
+  background: repeating-linear-gradient(to bottom, var(--paper) 0 var(--band-h), var(--band) var(--band-h) calc(var(--band-h) * 2));
+  padding: 0 52px;
+  box-shadow: 0 1px 0 rgb(0 0 0 / .25), 0 18px 40px rgb(0 0 0 / .35);
+}
+/* tractor-feed margins: punched holes and a perforation line */
+.sheet::before, .sheet::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 34px;
+  background:
+    radial-gradient(circle at 17px 13px, var(--desk) 0 5.5px, rgb(0 0 0 / .18) 6px, transparent 6.6px) 0 0 / 34px var(--band-h) repeat-y,
+    var(--paper);
+}
+.sheet::before { left: 0; border-right: 1.5px dashed var(--rule); }
+.sheet::after { right: 0; border-left: 1.5px dashed var(--rule); }
+.perf { height: 14px; border-bottom: 1.5px dashed var(--rule); margin: 0 -18px; }
+@media (max-width: 640px) {
+  .sheet { padding: 0 24px; --band-h: 24px; }
+  .sheet::before, .sheet::after { width: 14px; background:
+    radial-gradient(circle at 7px 12px, var(--desk) 0 3.4px, transparent 4px) 0 0 / 14px var(--band-h) repeat-y, var(--paper); }
+  .perf { margin: 0 -10px; }
+}
+
+/* ---------- print header ---------- */
+.head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 24px; align-items: end; padding-top: 10px; }
+.title {
+  margin: 0; font: 900 clamp(46px, 8vw, 92px)/.86 var(--stencil); letter-spacing: .01em; text-transform: uppercase;
+  color: var(--ink);
+}
+.title em { font-style: normal; color: var(--stamp); }
+.meters { display: grid; grid-template-columns: auto auto; gap: 0 14px; font: 500 13px/var(--band-h) var(--data); text-transform: uppercase; letter-spacing: .06em; }
+.meters dt { color: var(--ink-2); }
+.meters dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.meters dd.clock { font-size: 22px; letter-spacing: .02em; }
+.meters dd.low { color: var(--stamp); }
+.runline { grid-column: 1 / -1; font: 400 12px/var(--band-h) var(--data); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); border-top: 2px solid var(--ink); margin-top: 8px; display: flex; flex-wrap: wrap; gap: 0 22px; }
+@media (max-width: 640px) { .head { grid-template-columns: minmax(0, 1fr); } .meters { grid-template-columns: repeat(3, auto auto); justify-content: start; } .meters dd { text-align: left; } }
+
+/* ---------- memo ---------- */
+.memo { margin-top: var(--band-h); max-width: 74ch; }
+.memo .to { display: grid; grid-template-columns: 6ch minmax(0, 1fr); font-weight: 700; }
+.memo p { margin: 0 0 var(--band-h); }
+.memo .row { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: center; margin-bottom: var(--band-h); }
+.hint { font: 400 13px/1.5 var(--data); color: var(--ink-2); }
+.memo.compact p, .memo.compact .to { display: none; }
+.memo.compact { margin-top: 6px; }
+.memo.compact .row { margin-bottom: 4px; }
+
+/* rubber-stamp buttons */
+.stampbtn {
+  display: inline-block; cursor: pointer; background: transparent; color: var(--stamp);
+  font: 900 26px/1 var(--stencil); letter-spacing: .06em; text-transform: uppercase;
+  border: 3px solid var(--stamp); outline: 1.5px solid var(--stamp); outline-offset: 3px;
+  padding: 9px 18px 7px; transform: rotate(-1.6deg); border-radius: 3px;
+  transition: background .12s, color .12s, transform .12s;
+}
+.stampbtn:hover { background: var(--stamp); color: var(--paper); transform: rotate(-1.6deg) scale(1.02); }
+.stampbtn:active { transform: rotate(-1.6deg) scale(.97); }
+.stampbtn.small { font-size: 19px; padding: 7px 12px 5px; border-width: 2.5px; outline-width: 1px; }
+.keybtn {
+  cursor: pointer; background: var(--paper); border: 1.5px solid var(--ink); border-radius: 2px;
+  font: 600 12px/1 var(--data); letter-spacing: .08em; text-transform: uppercase; padding: 9px 12px;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.keybtn:hover { background: var(--band); }
+.keybtn:active { transform: translate(2px, 2px); box-shadow: none; }
+
+/* ---------- body grid ---------- */
+.cols { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 0 40px; margin-top: var(--band-h); }
+@media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.figcap { font: 500 12px/var(--band-h) var(--data); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-2); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-top: 1.5px solid var(--ink); }
+
+.plot { position: relative; aspect-ratio: 1 / 1; max-width: 100%; border: 1.5px solid var(--ink); }
+.plot::before, .plot::after { content: "+"; position: absolute; font: 400 16px/1 var(--data); color: var(--ink-2); }
+.plot::before { left: -14px; top: -15px; }
+.plot::after { right: -14px; bottom: -15px; }
+#board { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#board:active { cursor: grabbing; }
+.zoom { position: absolute; right: 8px; top: 8px; display: flex; gap: 6px; }
+.zoom button { width: 32px; height: 32px; padding: 0; font: 600 15px/1 var(--data); }
+
+/* chart marks */
+.e { stroke: var(--ink); stroke-opacity: .32; stroke-width: 1.3; }
+.e.money { stroke-opacity: .7; stroke-dasharray: 7 5; marker-end: url(#arrow); }
+.hub rect { fill: var(--paper); stroke: var(--ink); stroke-width: 1.4; }
+.hub text { font: 600 11px var(--data); fill: var(--ink); text-anchor: middle; dominant-baseline: central; letter-spacing: .04em; pointer-events: none; }
+.hub { cursor: help; }
+.hub:hover rect, .hub:focus-visible rect { fill: var(--band); }
+.app { cursor: pointer; }
+.app .hit { fill: transparent; }
+.app .body { fill: var(--paper); stroke: var(--ink); stroke-width: 2.1; }
+.app:hover .body, .app:focus-visible .body { stroke-width: 3.2; }
+.app .hl { fill: var(--highlight); opacity: 0; mix-blend-mode: multiply; pointer-events: none; }
+.app .mark { fill: none; stroke: var(--stamp); stroke-width: 3.4; opacity: 0; pointer-events: none; filter: url(#ink); }
+.app .dot { fill: var(--stamp); opacity: 0; pointer-events: none; filter: url(#ink); }
+.app.on .mark, .app.on .dot { opacity: 1; }
+.app.on .body { stroke: var(--stamp); }
+/* reveal: highlighter on the truth, pen circles on the chosen reviewer's picks */
+.reveal .app.fraud .hl { opacity: .78; }
+.reveal .app .mark, .reveal .app .dot { opacity: 0; }
+.reveal .app.on .body { stroke: var(--ink); }
+.reveal .app.pick .mark { opacity: 1; stroke: var(--pick); }
+.reveal .app.pick .dot { opacity: .9; fill: var(--pick); }
+.dim .app:not(.lit), .dim .hub:not(.lit), .dim .e:not(.lit) { opacity: .14; }
+.hub.lit rect { stroke-width: 2.6; }
+.e.lit { stroke-opacity: .85; stroke-width: 2; }
+
+/* ---------- right column: notes & summary ---------- */
+.side { min-width: 0; }
+.h2 { font: 900 30px/calc(var(--band-h) * 1.5) var(--stencil); text-transform: uppercase; letter-spacing: .03em; margin: 0; }
+.label { font: 600 12px/var(--band-h) var(--data); text-transform: uppercase; letter-spacing: .1em; color: var(--ink-2); margin: 0; }
+.field { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 8px; align-items: baseline; }
+.field dt { font: 500 12px/var(--band-h) var(--data); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-2); white-space: nowrap; }
+.field dd { margin: 0; border-bottom: 1.5px dotted var(--ink-2); min-height: var(--band-h); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.notes { margin-top: 0; }
+.notes .blank { color: var(--ink-2); font-style: italic; }
+.symbols { list-style: none; margin: var(--band-h) 0 0; padding: 0; font-size: 15px; }
+.symbols li { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; }
+.symbols svg { overflow: visible; }
+
+/* summary printout */
+.verdict { position: relative; margin: 6px 0 var(--band-h); min-height: 120px; }
+.bigstamp {
+  display: inline-block; color: var(--stamp); border: 4px solid var(--stamp); outline: 2px solid var(--stamp); outline-offset: 4px;
+  font: 900 clamp(40px, 6vw, 62px)/.95 var(--stencil); text-transform: uppercase; letter-spacing: .02em;
+  padding: 10px 16px 6px; transform: rotate(-4deg); margin: 12px 0 10px 6px; filter: url(#ink-html);
+  mix-blend-mode: multiply;
+}
+.bigstamp small { display: block; font-size: .36em; letter-spacing: .14em; }
+.verdict p { margin: 0; }
+.tbl { width: 100%; border-collapse: collapse; font: 400 14px/var(--band-h) var(--data); font-variant-numeric: tabular-nums; }
+.tbl th { text-align: left; font-weight: 600; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); line-height: 1.2; padding: 4px 6px 4px 0; border-bottom: 2px solid var(--ink); vertical-align: bottom; }
+.tbl th.n, .tbl td.n { text-align: right; padding-right: 0; padding-left: 10px; }
+.tbl td { padding: 0 6px 0 0; border-bottom: 1px dashed var(--rule); }
+.tbl tr.party { cursor: pointer; }
+.tbl tr.party:hover td { background: rgb(255 255 255 / .55); }
+.tbl .who { display: flex; align-items: center; gap: 8px; text-transform: uppercase; font-weight: 600; letter-spacing: .03em; font-size: 13px; }
+.tbl .who svg { flex: none; }
+.tbl tr[aria-pressed="true"] .who span { text-decoration: underline wavy var(--c); text-underline-offset: 5px; }
+.tblwrap { overflow-x: auto; }
+.legend2 { display: flex; flex-wrap: wrap; gap: 0 18px; font: 400 12px/var(--band-h) var(--data); color: var(--ink-2); }
+.legend2 span { display: inline-flex; align-items: center; gap: 6px; }
+.sw-hl { width: 16px; height: 11px; background: var(--highlight); display: inline-block; }
+.views { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
+.views .keybtn[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.note { margin-top: 4px; color: var(--ink-2); font-size: 15px; }
+
+.carbon {
+  margin-top: var(--band-h); padding: 6px 12px; border: 1.5px dashed var(--ink-2);
+  background: rgb(255 255 255 / .55); font: 400 14px/1.6 var(--type); user-select: all; overflow-wrap: anywhere;
+}
+.actions { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: var(--band-h); }
+.toast { font: 500 12px/var(--band-h) var(--data); color: var(--pen-blue); min-height: var(--band-h); }
+
+/* case notes */
+.rings { list-style: none; margin: 0; padding: 0; counter-reset: n; }
+.rings li { counter-increment: n; padding: 0 0 var(--band-h); cursor: pointer; }
+.rings .rt { font-weight: 700; text-transform: uppercase; letter-spacing: .02em; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.rings .rt::before { content: "Note " counter(n, decimal-leading-zero) " \2014\00a0"; color: var(--ink-2); font-weight: 400; }
+.rings .rt .n { margin-left: auto; font: 500 12px/var(--band-h) var(--data); color: var(--ink-2); }
+.rings p { margin: 0; }
+.rings li:hover .rt, .rings li.sel .rt { background: linear-gradient(transparent 30%, var(--highlight) 30% 85%, transparent 85%); }
+.boxes { display: flex; flex-wrap: wrap; gap: 0 16px; font: 500 12px/var(--band-h) var(--data); text-transform: uppercase; letter-spacing: .05em; }
+.boxes span { white-space: nowrap; }
+.boxes b { font-weight: 600; color: var(--c); }
+
+/* appendix */
+.appx { margin-top: calc(var(--band-h) * 2); border-top: 2px solid var(--ink); }
+.appx .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 40px; }
+@media (max-width: 900px) { .appx .grid { grid-template-columns: minmax(0, 1fr); } }
+.bars { margin-top: 4px; }
+.bars .r { display: grid; grid-template-columns: 12.5em minmax(0, 1fr) 3.6em; gap: 12px; align-items: center; font: 500 12px/var(--band-h) var(--data); text-transform: uppercase; letter-spacing: .05em; }
+.bars .track { position: relative; height: 14px; border: 1.2px solid var(--ink); background: var(--paper); }
+.bars .track b { position: absolute; left: 0; top: 0; bottom: 0; border-right: 1.5px solid var(--ink);
+  background: repeating-linear-gradient(135deg, var(--c) 0 2px, transparent 2px 5px); }
+.bars .track s { position: absolute; top: -5px; bottom: -5px; border-left: 1.5px dashed var(--ink); }
+.bars .v { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.bars .axis { display: grid; grid-template-columns: 12.5em minmax(0, 1fr) 3.6em; gap: 12px; font: 400 11px/var(--band-h) var(--data); color: var(--ink-2); }
+.bars .axis div { display: flex; justify-content: space-between; }
+@media (max-width: 520px) { .bars .r, .bars .axis { grid-template-columns: 8.5em minmax(0, 1fr) 3.2em; font-size: 11px; } }
+.fine { font-size: 14px; color: var(--ink-2); }
+.fine p { margin: 0 0 var(--band-h); max-width: 70ch; }
+.foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0 20px; font: 400 11px/var(--band-h) var(--data); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); border-top: 1.5px solid var(--ink); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="ink-html" x="-5%" y="-10%" width="110%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="11" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.35" result="speck"/>
+      <feComposite in="SourceGraphic" in2="speck" operator="in" result="inked"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="1" seed="4" result="w"/>
+      <feDisplacementMap in="inked" in2="w" scale="2.5"/>
+    </filter>
+  </defs>
+</svg>
+
+<div class="sheet" id="root">
+  <div class="perf" aria-hidden="true"></div>
+
+  <header class="head">
+    <h1 class="title">Find the <em>Ring</em></h1>
+    <dl class="meters">
+      <dt>Case</dt><dd id="caseNo">01/03</dd>
+      <dt>Marked</dt><dd id="count">000</dd>
+      <dt>Time</dt><dd class="clock" id="clock" aria-live="off">01:30</dd>
+    </dl>
+    <div class="runline" id="runline">
+      <span>Loan book review</span><span>Synthetic data</span><span id="runApps">100 applications</span><span id="runLinks">55 shared items</span>
+    </div>
+  </header>
+
+  <section class="memo" id="memo">
+    <div class="to"><span>TO:</span><span>Reviewer</span></div>
+    <div class="to"><span>RE:</span><span id="memoRe">Case 01, suspected organised fraud</span></div>
+    <p></p>
+    <p>The applications in this book are linked by what they share: devices, bank accounts, addresses, documents. Some sharing is a family on one laptop. Some is a ring.</p>
+    <p>You have 90 seconds to mark every application you believe is fraud. Then two models review the same book with the same number of marks: one that counts connections, and one that reads the whole network.</p>
+    <div class="row">
+      <button class="stampbtn" id="startBtn">Start review</button>
+      <button class="stampbtn small" id="doneBtn" hidden>Close the file</button>
+      <span class="hint" id="hint">Tap a circle to mark it. Tap a square to see what's shared. Pinch or scroll to zoom.</span>
+    </div>
+  </section>
+
+  <div class="cols">
+    <div>
+      <div class="plot" id="stage">
+        <svg id="board" viewBox="0 0 1000 1000" role="group" aria-label="Link chart of loan applications and the things they share">
+          <defs>
+            <filter id="ink" x="-30%" y="-30%" width="160%" height="160%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.07" numOctaves="2" seed="7" result="w"/>
+              <feDisplacementMap in="SourceGraphic" in2="w" scale="3.2"/>
+            </filter>
+            <marker id="arrow" viewBox="0 0 10 10" refX="19" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="var(--ink)"/>
+            </marker>
+          </defs>
+          <g id="vp"><g id="gE"></g><g id="gH"></g><g id="gA"></g></g>
+        </svg>
+        <div class="zoom">
+          <button class="keybtn" id="zin" aria-label="Zoom in">+</button>
+          <button class="keybtn" id="zout" aria-label="Zoom out">−</button>
+          <button class="keybtn" id="zfit" aria-label="Reset view">⌂</button>
+        </div>
+      </div>
+      <div class="figcap"><span id="figTitle">Fig. 1 · Link chart, case 01</span><span>Drawn from Syn Env, seed 2</span></div>
+    </div>
+
+    <aside class="side">
+      <section id="playPanel">
+        <h2 class="h2">Reviewer's notes</h2>
+        <dl class="field notes" id="inspect">
+          <dt>Item</dt><dd class="blank">tap anything on the chart</dd>
+          <dt>Amount</dt><dd></dd>
+          <dt>Purpose</dt><dd></dd>
+          <dt>Applicant</dt><dd></dd>
+          <dt>Filed</dt><dd></dd>
+          <dt>Shares</dt><dd></dd>
+        </dl>
+        <p class="label" style="margin-top:var(--band-h)">Key to symbols</p>
+        <ul class="symbols" id="symbols"></ul>
+      </section>
+
+      <section id="resultPanel" hidden>
+        <h2 class="h2">Review summary</h2>
+        <div class="verdict">
+          <div class="bigstamp" id="bigstamp">3 of 6<small>rings found</small></div>
+          <p id="headline"></p>
+        </div>
+        <div class="tblwrap">
+          <table class="tbl">
+            <thead><tr><th>Reviewer</th><th class="n">Rings<br>found</th><th class="n">Fraud<br>marked</th><th class="n">False<br>alarms</th></tr></thead>
+            <tbody id="score"></tbody>
+          </table>
+        </div>
+        <p class="note" id="budgetNote"></p>
+        <p class="label" style="margin-top:var(--band-h)">Show on the chart</p>
+        <div class="views" id="views" role="group" aria-label="Show on the chart"></div>
+        <div class="legend2">
+          <span><span class="sw-hl"></span>really fraud</span>
+          <span><svg width="18" height="18" viewBox="-9 -9 18 18"><circle r="7" fill="none" stroke="var(--pick, var(--stamp))" stroke-width="2.4"/></svg>marked by the selected reviewer</span>
+        </div>
+        <div class="carbon" id="shareText"></div>
+        <div class="actions">
+          <button class="stampbtn small" id="nextBtn">Next case</button>
+          <button class="keybtn" id="copyBtn">Copy result</button>
+          <button class="keybtn" id="againBtn">Replay case</button>
+        </div>
+        <div class="toast" id="toast" aria-live="polite"></div>
+      </section>
+    </aside>
+  </div>
+
+  <section id="ringPanel" hidden style="margin-top:var(--band-h)">
+    <h2 class="h2">Case notes</h2>
+    <p class="label">Tap a note to trace that ring on the chart</p>
+    <ol class="rings" id="rings"></ol>
+  </section>
+
+  <section class="appx">
+    <div class="grid">
+      <div>
+        <h2 class="h2">Appendix A</h2>
+        <p class="label" id="bookLabel">All applications in the generated book</p>
+        <p class="fine" id="bookIntro"></p>
+        <div class="bars" id="book"></div>
+      </div>
+      <div class="fine">
+        <h2 class="h2" style="color:var(--ink)">Method</h2>
+        <p id="method"></p>
+        <p>Made by Rhys Miranda with Syn Env, a generator of synthetic loan-fraud networks, and graphlift, an audit of whether graph structure helps a model. No real people, businesses or loans appear here.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot"><span>Find the Ring · fraud desk printout</span><span id="footCase">Case 01 of 03 · page 1 of 1</span></footer>
+  <div class="perf" aria-hidden="true"></div>
+</div>
+
+<script id="data" type="application/json">{"boards":[{"apps":[{"id":"0000341","xy":[859.6,435.1],"fraud":1,"ring":1,"amount":822,"purpose":"inventory","age":9,"day":91,"sme":1,"s":{"own":0.2634,"hubs":0.0105,"graph":0.0054}},{"id":"0000342","xy":[786.1,478.5],"fraud":1,"ring":1,"amount":6979,"purpose":"working capital","age":51,"day":66,"sme":1,"s":{"own":0.113,"hubs":0.0101,"graph":0.0429}},{"id":"0000343","xy":[852.5,536.4],"fraud":1,"ring":1,"amount":372,"purpose":"property","age":39,"day":181,"sme":1,"s":{"own":0.0265,"hubs":0.0069,"graph":0.0207}},{"id":"0000344","xy":[700.0,468.9],"fraud":1,"ring":1,"amount":1714,"purpose":"equipment","age":62,"day":44,"sme":1,"s":{"own":0.0308,"hubs":0.0015,"graph":0.0043}},{"id":"0000345","xy":[578.0,474.7],"fraud":1,"ring":1,"amount":922,"purpose":"expansion","age":40,"day":120,"sme":0,"s":{"own":0.1215,"hubs":0.1357,"graph":0.0599}},{"id":"0000412","xy":[849.8,298.3],"fraud":1,"ring":5,"amount":563,"purpose":"refinance","age":79,"day":35,"sme":0,"s":{"own":0.912,"hubs":0.8468,"graph":0.9612}},{"id":"0000413","xy":[788.4,235.6],"fraud":1,"ring":5,"amount":440,"purpose":"refinance","age":30,"day":36,"sme":0,"s":{"own":0.4248,"hubs":0.8668,"graph":0.9425}},{"id":"0000414","xy":[935.2,381.8],"fraud":1,"ring":5,"amount":2152,"purpose":"property","age":38,"day":36,"sme":0,"s":{"own":0.1712,"hubs":0.791,"graph":0.8328}},{"id":"0000599","xy":[721.5,719.8],"fraud":1,"ring":4,"amount":1397,"purpose":"equipment","age":20,"day":256,"sme":0,"s":{"own":0.7088,"hubs":0.44,"graph":0.7964}},{"id":"0000600","xy":[678.5,846.6],"fraud":1,"ring":4,"amount":362,"purpose":"refinance","age":30,"day":100,"sme":0,"s":{"own":0.4614,"hubs":0.3795,"graph":0.4026}},{"id":"0000601","xy":[661.3,927.6],"fraud":1,"ring":4,"amount":3785,"purpose":"equipment","age":29,"day":153,"sme":0,"s":{"own":0.4061,"hubs":0.3216,"graph":0.9066}},{"id":"0000691","xy":[637.2,317.2],"fraud":1,"ring":3,"amount":1449,"purpose":"expansion","age":21,"day":208,"sme":0,"s":{"own":0.4353,"hubs":0.9151,"graph":0.7885}},{"id":"0000692","xy":[625.8,80.3],"fraud":1,"ring":3,"amount":2411,"purpose":"inventory","age":19,"day":133,"sme":0,"s":{"own":0.2291,"hubs":0.1086,"graph":0.4413}},{"id":"0000693","xy":[579.8,86.9],"fraud":1,"ring":3,"amount":7389,"purpose":"working capital","age":61,"day":43,"sme":0,"s":{"own":0.7572,"hubs":0.6529,"graph":0.9647}},{"id":"0000694","xy":[559.1,220.5],"fraud":1,"ring":3,"amount":518,"purpose":"expansion","age":19,"day":60,"sme":0,"s":{"own":0.1005,"hubs":0.4518,"graph":0.1449}},{"id":"0000695","xy":[664.7,104.7],"fraud":1,"ring":3,"amount":346,"purpose":"property","age":41,"day":112,"sme":0,"s":{"own":0.621,"hubs":0.5011,"graph":0.4082}},{"id":"0000757","xy":[545.9,790.6],"fraud":1,"ring":0,"amount":6760,"purpose":"equipment","age":29,"day":101,"sme":0,"s":{"own":0.247,"hubs":0.0031,"graph":0.0035}},{"id":"0000758","xy":[304.1,538.5],"fraud":1,"ring":0,"amount":605,"purpose":"property","age":39,"day":133,"sme":0,"s":{"own":0.5121,"hubs":0.0229,"graph":0.0067}},{"id":"0000759","xy":[411.6,744.2],"fraud":1,"ring":0,"amount":3711,"purpose":"equipment","age":31,"day":77,"sme":0,"s":{"own":0.3442,"hubs":0.0077,"graph":0.0215}},{"id":"0000760","xy":[206.5,516.2],"fraud":1,"ring":0,"amount":3805,"purpose":"inventory","age":32,"day":139,"sme":0,"s":{"own":0.2311,"hubs":0.1406,"graph":0.3358}},{"id":"0000761","xy":[161.5,536.3],"fraud":1,"ring":0,"amount":3639,"purpose":"expansion","age":51,"day":162,"sme":0,"s":{"own":0.35,"hubs":0.1241,"graph":0.8951}},{"id":"0000839","xy":[194.9,335.6],"fraud":1,"ring":2,"amount":3560,"purpose":"working capital","age":21,"day":295,"sme":0,"s":{"own":0.7121,"hubs":0.8197,"graph":0.9627}},{"id":"0000840","xy":[417.5,485.6],"fraud":1,"ring":2,"amount":1844,"purpose":"inventory","age":19,"day":301,"sme":0,"s":{"own":0.2217,"hubs":0.9757,"graph":0.5742}},{"id":"0000841","xy":[165.8,231.3],"fraud":1,"ring":2,"amount":1424,"purpose":"property","age":21,"day":297,"sme":0,"s":{"own":0.2193,"hubs":0.1669,"graph":0.756}},{"id":"0000842","xy":[142.0,466.5],"fraud":1,"ring":2,"amount":615,"purpose":"expansion","age":20,"day":291,"sme":0,"s":{"own":0.3472,"hubs":0.7326,"graph":0.4014}},{"id":"0000843","xy":[115.0,259.3],"fraud":1,"ring":2,"amount":287,"purpose":"property","age":39,"day":295,"sme":0,"s":{"own":0.7369,"hubs":0.7308,"graph":0.4177}},{"id":"0000844","xy":[40.0,501.0],"fraud":1,"ring":2,"amount":190,"purpose":"expansion","age":31,"day":293,"sme":0,"s":{"own":0.5499,"hubs":0.8717,"graph":0.7145}},{"id":"0000845","xy":[90.9,504.0],"fraud":1,"ring":2,"amount":4042,"purpose":"expansion","age":41,"day":292,"sme":0,"s":{"own":0.2171,"hubs":0.8717,"graph":0.9537}},{"id":"0000846","xy":[58.2,379.6],"fraud":1,"ring":2,"amount":1399,"purpose":"inventory","age":21,"day":302,"sme":0,"s":{"own":0.2164,"hubs":0.9201,"graph":0.7665}},{"id":"0000893","xy":[257.5,102.4],"fraud":0,"ring":-1,"amount":3176,"purpose":"expansion","age":30,"day":114,"sme":1,"s":{"own":0.0176,"hubs":0.0144,"graph":0.0009}},{"id":"0000925","xy":[59.0,551.7],"fraud":0,"ring":-1,"amount":544,"purpose":"expansion","age":27,"day":313,"sme":1,"s":{"own":0.3248,"hubs":0.013,"graph":0.0069}},{"id":"0000950","xy":[832.7,183.2],"fraud":0,"ring":-1,"amount":900,"purpose":"equipment","age":19,"day":361,"sme":1,"s":{"own":0.0269,"hubs":0.0027,"graph":0.0007}},{"id":"0000964","xy":[363.7,950.0],"fraud":0,"ring":-1,"amount":511,"purpose":"property","age":51,"day":110,"sme":1,"s":{"own":0.0661,"hubs":0.0333,"graph":0.007}},{"id":"0000971","xy":[186.9,167.2],"fraud":0,"ring":-1,"amount":186,"purpose":"refinance","age":51,"day":224,"sme":0,"s":{"own":0.1394,"hubs":0.038,"graph":0.0957}},{"id":"0000980","xy":[801.4,156.3],"fraud":0,"ring":-1,"amount":1976,"purpose":"equipment","age":30,"day":158,"sme":1,"s":{"own":0.0037,"hubs":0.0082,"graph":0.0022}},{"id":"0001014","xy":[960.0,560.7],"fraud":0,"ring":-1,"amount":946,"purpose":"working capital","age":49,"day":158,"sme":1,"s":{"own":0.0572,"hubs":0.0263,"graph":0.002}},{"id":"0001049","xy":[329.0,669.6],"fraud":0,"ring":-1,"amount":907,"purpose":"property","age":30,"day":114,"sme":1,"s":{"own":0.0075,"hubs":0.0087,"graph":0.0016}},{"id":"0001175","xy":[782.7,708.0],"fraud":0,"ring":-1,"amount":1304,"purpose":"expansion","age":19,"day":250,"sme":0,"s":{"own":0.2686,"hubs":0.2875,"graph":0.1017}},{"id":"0001176","xy":[843.9,735.2],"fraud":0,"ring":-1,"amount":926,"purpose":"equipment","age":50,"day":191,"sme":0,"s":{"own":0.4148,"hubs":0.1489,"graph":0.0076}},{"id":"0001177","xy":[798.6,843.0],"fraud":0,"ring":-1,"amount":366,"purpose":"equipment","age":50,"day":282,"sme":0,"s":{"own":0.388,"hubs":0.1156,"graph":0.0189}},{"id":"0001178","xy":[731.3,830.1],"fraud":0,"ring":-1,"amount":3130,"purpose":"equipment","age":38,"day":33,"sme":0,"s":{"own":0.3416,"hubs":0.1608,"graph":0.2256}},{"id":"0001179","xy":[856.3,785.1],"fraud":0,"ring":-1,"amount":631,"purpose":"refinance","age":8,"day":28,"sme":0,"s":{"own":0.0879,"hubs":0.1089,"graph":0.0833}},{"id":"0001288","xy":[912.5,609.1],"fraud":0,"ring":-1,"amount":743,"purpose":"inventory","age":40,"day":269,"sme":1,"s":{"own":0.0296,"hubs":0.0024,"graph":0.0006}},{"id":"0001289","xy":[916.3,654.0],"fraud":0,"ring":-1,"amount":626,"purpose":"inventory","age":51,"day":365,"sme":0,"s":{"own":0.3016,"hubs":0.0382,"graph":0.0085}},{"id":"0001290","xy":[894.1,701.6],"fraud":0,"ring":-1,"amount":251,"purpose":"property","age":9,"day":196,"sme":1,"s":{"own":0.0192,"hubs":0.0216,"graph":0.0048}},{"id":"0001291","xy":[736.6,644.1],"fraud":0,"ring":-1,"amount":372,"purpose":"expansion","age":20,"day":106,"sme":0,"s":{"own":0.5481,"hubs":0.0151,"graph":0.0074}},{"id":"0001459","xy":[166.5,665.7],"fraud":0,"ring":-1,"amount":483,"purpose":"refinance","age":28,"day":95,"sme":1,"s":{"own":0.0627,"hubs":0.0058,"graph":0.0031}},{"id":"0001460","xy":[51.9,622.2],"fraud":0,"ring":-1,"amount":492,"purpose":"property","age":29,"day":190,"sme":1,"s":{"own":0.0286,"hubs":0.0104,"graph":0.0035}},{"id":"0001461","xy":[105.8,748.3],"fraud":0,"ring":-1,"amount":344,"purpose":"inventory","age":29,"day":95,"sme":1,"s":{"own":0.0168,"hubs":0.0056,"graph":0.0004}},{"id":"0001462","xy":[97.7,590.8],"fraud":0,"ring":-1,"amount":2086,"purpose":"equipment","age":30,"day":121,"sme":0,"s":{"own":0.4772,"hubs":0.0529,"graph":0.0008}},{"id":"0001463","xy":[145.3,728.3],"fraud":0,"ring":-1,"amount":431,"purpose":"expansion","age":51,"day":76,"sme":0,"s":{"own":0.8606,"hubs":0.0252,"graph":0.0031}},{"id":"0002054","xy":[567.0,397.6],"fraud":0,"ring":-1,"amount":687,"purpose":"expansion","age":38,"day":155,"sme":1,"s":{"own":0.0066,"hubs":0.0041,"graph":0.0003}},{"id":"0002055","xy":[584.2,348.0],"fraud":0,"ring":-1,"amount":178,"purpose":"equipment","age":40,"day":131,"sme":0,"s":{"own":0.0605,"hubs":0.0208,"graph":0.0179}},{"id":"0002056","xy":[552.8,306.5],"fraud":0,"ring":-1,"amount":400,"purpose":"refinance","age":20,"day":147,"sme":0,"s":{"own":0.3567,"hubs":0.0155,"graph":0.0107}},{"id":"0002057","xy":[531.0,436.6],"fraud":0,"ring":-1,"amount":208,"purpose":"working capital","age":21,"day":131,"sme":0,"s":{"own":0.0738,"hubs":0.1131,"graph":0.0074}},{"id":"0002058","xy":[395.4,268.3],"fraud":0,"ring":-1,"amount":384,"purpose":"working capital","age":31,"day":152,"sme":1,"s":{"own":0.0079,"hubs":0.0358,"graph":0.0031}},{"id":"0002059","xy":[484.3,438.4],"fraud":0,"ring":-1,"amount":1263,"purpose":"working capital","age":40,"day":218,"sme":0,"s":{"own":0.398,"hubs":0.0665,"graph":0.0051}},{"id":"0002060","xy":[306.6,849.0],"fraud":0,"ring":-1,"amount":599,"purpose":"refinance","age":41,"day":243,"sme":1,"s":{"own":0.0166,"hubs":0.0069,"graph":0.0013}},{"id":"0002061","xy":[260.2,889.4],"fraud":0,"ring":-1,"amount":6795,"purpose":"working capital","age":30,"day":81,"sme":1,"s":{"own":0.2578,"hubs":0.0046,"graph":0.002}},{"id":"0002062","xy":[328.7,906.4],"fraud":0,"ring":-1,"amount":977,"purpose":"expansion","age":50,"day":194,"sme":1,"s":{"own":0.0438,"hubs":0.0087,"graph":0.001}},{"id":"0002063","xy":[335.6,725.5],"fraud":0,"ring":-1,"amount":5509,"purpose":"working capital","age":41,"day":100,"sme":1,"s":{"own":0.0045,"hubs":0.0046,"graph":0.0018}},{"id":"0002064","xy":[192.5,852.2],"fraud":0,"ring":-1,"amount":1147,"purpose":"inventory","age":40,"day":210,"sme":1,"s":{"own":0.0045,"hubs":0.0096,"graph":0.0122}},{"id":"0002065","xy":[203.3,716.9],"fraud":0,"ring":-1,"amount":2276,"purpose":"equipment","age":49,"day":99,"sme":0,"s":{"own":0.4366,"hubs":0.0238,"graph":0.0308}},{"id":"0002066","xy":[174.0,794.5],"fraud":0,"ring":-1,"amount":6001,"purpose":"property","age":49,"day":229,"sme":1,"s":{"own":0.0383,"hubs":0.0048,"graph":0.0024}},{"id":"0002411","xy":[685.1,261.3],"fraud":0,"ring":-1,"amount":849,"purpose":"inventory","age":31,"day":190,"sme":0,"s":{"own":0.1082,"hubs":0.0166,"graph":0.0776}},{"id":"0002412","xy":[693.7,306.7],"fraud":0,"ring":-1,"amount":350,"purpose":"working capital","age":50,"day":173,"sme":1,"s":{"own":0.0377,"hubs":0.0032,"graph":0.0007}},{"id":"0002413","xy":[307.3,372.3],"fraud":0,"ring":-1,"amount":771,"purpose":"property","age":21,"day":193,"sme":1,"s":{"own":0.0233,"hubs":0.0041,"graph":0.0014}},{"id":"0002414","xy":[287.0,252.2],"fraud":0,"ring":-1,"amount":2155,"purpose":"refinance","age":40,"day":207,"sme":0,"s":{"own":0.2265,"hubs":0.0112,"graph":0.0372}},{"id":"0002415","xy":[726.6,220.6],"fraud":0,"ring":-1,"amount":1086,"purpose":"inventory","age":40,"day":179,"sme":1,"s":{"own":0.0335,"hubs":0.0043,"graph":0.0004}},{"id":"0002416","xy":[750.6,167.3],"fraud":0,"ring":-1,"amount":306,"purpose":"property","age":29,"day":210,"sme":1,"s":{"own":0.0153,"hubs":0.0115,"graph":0.0009}},{"id":"0002417","xy":[724.7,122.7],"fraud":0,"ring":-1,"amount":879,"purpose":"equipment","age":42,"day":220,"sme":1,"s":{"own":0.0495,"hubs":0.0081,"graph":0.0021}},{"id":"0002418","xy":[376.6,72.7],"fraud":0,"ring":-1,"amount":5049,"purpose":"inventory","age":22,"day":160,"sme":0,"s":{"own":0.5238,"hubs":0.0034,"graph":0.0021}},{"id":"0002419","xy":[518.3,48.2],"fraud":0,"ring":-1,"amount":906,"purpose":"expansion","age":40,"day":167,"sme":1,"s":{"own":0.0255,"hubs":0.0015,"graph":0.0008}},{"id":"0002420","xy":[520.5,99.2],"fraud":0,"ring":-1,"amount":936,"purpose":"property","age":30,"day":167,"sme":1,"s":{"own":0.0174,"hubs":0.0023,"graph":0.0003}},{"id":"0002421","xy":[353.8,135.8],"fraud":0,"ring":-1,"amount":404,"purpose":"refinance","age":51,"day":206,"sme":1,"s":{"own":0.0224,"hubs":0.002,"graph":0.0054}},{"id":"0002422","xy":[325.7,183.8],"fraud":0,"ring":-1,"amount":394,"purpose":"working capital","age":51,"day":227,"sme":1,"s":{"own":0.1703,"hubs":0.0033,"graph":0.004}},{"id":"0002423","xy":[418.8,131.6],"fraud":0,"ring":-1,"amount":628,"purpose":"property","age":21,"day":221,"sme":0,"s":{"own":0.6764,"hubs":0.0147,"graph":0.0013}},{"id":"0002498","xy":[450.1,295.0],"fraud":0,"ring":-1,"amount":1789,"purpose":"refinance","age":42,"day":126,"sme":1,"s":{"own":0.1644,"hubs":0.0039,"graph":0.0009}},{"id":"0002499","xy":[431.3,420.7],"fraud":0,"ring":-1,"amount":283,"purpose":"expansion","age":31,"day":127,"sme":1,"s":{"own":0.0024,"hubs":0.0124,"graph":0.0076}},{"id":"0002500","xy":[354.6,330.4],"fraud":0,"ring":-1,"amount":523,"purpose":"expansion","age":21,"day":126,"sme":0,"s":{"own":0.3359,"hubs":0.0281,"graph":0.0244}},{"id":"0002501","xy":[380.1,427.0],"fraud":0,"ring":-1,"amount":585,"purpose":"inventory","age":30,"day":126,"sme":0,"s":{"own":0.3941,"hubs":0.3166,"graph":0.1481}},{"id":"0002771","xy":[467.0,893.5],"fraud":0,"ring":-1,"amount":461,"purpose":"working capital","age":31,"day":74,"sme":1,"s":{"own":0.0207,"hubs":0.0037,"graph":0.002}},{"id":"0002772","xy":[514.7,839.7],"fraud":0,"ring":-1,"amount":243,"purpose":"equipment","age":32,"day":90,"sme":1,"s":{"own":0.0272,"hubs":0.001,"graph":0.0007}},{"id":"0002773","xy":[412.5,879.6],"fraud":0,"ring":-1,"amount":6209,"purpose":"refinance","age":18,"day":57,"sme":1,"s":{"own":0.0894,"hubs":0.0038,"graph":0.0006}},{"id":"0002774","xy":[463.1,534.9],"fraud":0,"ring":-1,"amount":610,"purpose":"inventory","age":29,"day":138,"sme":0,"s":{"own":0.2139,"hubs":0.0209,"graph":0.2954}},{"id":"0002775","xy":[532.8,639.4],"fraud":0,"ring":-1,"amount":3083,"purpose":"expansion","age":20,"day":89,"sme":1,"s":{"own":0.0098,"hubs":0.004,"graph":0.0012}},{"id":"0002776","xy":[505.4,514.2],"fraud":0,"ring":-1,"amount":7143,"purpose":"expansion","age":41,"day":132,"sme":1,"s":{"own":0.0074,"hubs":0.0267,"graph":0.6977}},{"id":"0002777","xy":[606.8,905.3],"fraud":0,"ring":-1,"amount":5168,"purpose":"equipment","age":10,"day":26,"sme":0,"s":{"own":0.0914,"hubs":0.0262,"graph":0.0728}},{"id":"0002778","xy":[573.5,951.8],"fraud":0,"ring":-1,"amount":711,"purpose":"working capital","age":50,"day":85,"sme":0,"s":{"own":0.6247,"hubs":0.1258,"graph":0.1609}},{"id":"0002779","xy":[483.5,951.2],"fraud":0,"ring":-1,"amount":1250,"purpose":"expansion","age":20,"day":80,"sme":1,"s":{"own":0.0089,"hubs":0.0015,"graph":0.0003}},{"id":"0002780","xy":[409.8,567.1],"fraud":0,"ring":-1,"amount":873,"purpose":"refinance","age":40,"day":87,"sme":1,"s":{"own":0.0036,"hubs":0.0035,"graph":0.0029}},{"id":"0002781","xy":[372.1,538.0],"fraud":0,"ring":-1,"amount":723,"purpose":"expansion","age":40,"day":112,"sme":1,"s":{"own":0.0068,"hubs":0.0009,"graph":0.0005}},{"id":"0002782","xy":[288.2,626.7],"fraud":0,"ring":-1,"amount":549,"purpose":"working capital","age":40,"day":78,"sme":1,"s":{"own":0.0143,"hubs":0.0018,"graph":0.0007}},{"id":"0002783","xy":[653.1,717.6],"fraud":0,"ring":-1,"amount":1715,"purpose":"property","age":69,"day":78,"sme":1,"s":{"own":0.0252,"hubs":0.0008,"graph":0.0037}},{"id":"0002784","xy":[632.2,771.1],"fraud":0,"ring":-1,"amount":570,"purpose":"equipment","age":41,"day":41,"sme":0,"s":{"own":0.2882,"hubs":0.0443,"graph":0.0341}},{"id":"0002785","xy":[560.0,548.3],"fraud":0,"ring":-1,"amount":2155,"purpose":"inventory","age":20,"day":52,"sme":1,"s":{"own":0.0352,"hubs":0.0023,"graph":0.0039}},{"id":"0002786","xy":[662.5,618.1],"fraud":0,"ring":-1,"amount":751,"purpose":"property","age":21,"day":42,"sme":1,"s":{"own":0.0197,"hubs":0.0014,"graph":0.002}},{"id":"0002787","xy":[669.1,665.9],"fraud":0,"ring":-1,"amount":374,"purpose":"equipment","age":22,"day":59,"sme":1,"s":{"own":0.0221,"hubs":0.0007,"graph":0.0007}},{"id":"0002788","xy":[366.8,844.8],"fraud":0,"ring":-1,"amount":672,"purpose":"expansion","age":21,"day":134,"sme":0,"s":{"own":0.3704,"hubs":0.0047,"graph":0.0026}},{"id":"0002789","xy":[280.1,729.2],"fraud":0,"ring":-1,"amount":1097,"purpose":"working capital","age":31,"day":41,"sme":0,"s":{"own":0.1126,"hubs":0.0114,"graph":0.0038}}],"ents":[{"id":"addr_0000319","kind":"address","xy":[909.0,490.5],"n":4},{"id":"addr_0000320","kind":"address","xy":[805.7,388.0],"n":4},{"id":"bank_0000293","kind":"bank","xy":[904.6,335.0],"n":2},{"id":"bank_0000475","kind":"bank","xy":[701.9,900.2],"n":2},{"id":"bank_0000692","kind":"collector","xy":[134.9,390.7],"n":8},{"id":"bank_0000693","kind":"bank","xy":[228.2,398.4],"n":2},{"id":"bank_0000694","kind":"bank","xy":[115.0,318.9],"n":3},{"id":"bank_0000695","kind":"bank","xy":[65.5,441.7],"n":3},{"id":"bank_0001024","kind":"collector","xy":[267.8,331.6],"n":2},{"id":"bank_0001027","kind":"bank","xy":[322.8,443.2],"n":1},{"id":"bank_0001031","kind":"bank","xy":[217.6,285.8],"n":1},{"id":"bank_0001104","kind":"bank","xy":[848.0,656.6],"n":4},{"id":"bank_0001246","kind":"bank","xy":[97.5,674.9],"n":5},{"id":"bank_0001723","kind":"bank","xy":[504.6,362.5],"n":6},{"id":"bank_0001772","kind":"bank","xy":[158.8,598.9],"n":3},{"id":"bank_0001787","kind":"collector","xy":[211.1,460.6],"n":2},{"id":"bank_0001794","kind":"bank","xy":[268.9,464.7],"n":2},{"id":"bank_0001903","kind":"collector","xy":[248.1,149.6],"n":3},{"id":"bank_0001905","kind":"bank","xy":[305.0,104.2],"n":1},{"id":"bank_0001906","kind":"bank","xy":[241.7,210.3],"n":2},{"id":"bank_0001977","kind":"collector","xy":[489.5,182.6],"n":13},{"id":"bank_0001978","kind":"bank","xy":[622.5,253.4],"n":2},{"id":"bank_0001979","kind":"bank","xy":[337.5,261.3],"n":2},{"id":"bank_0001980","kind":"bank","xy":[680.5,176.5],"n":3},{"id":"bank_0001981","kind":"bank","xy":[461.2,81.0],"n":3},{"id":"bank_0001982","kind":"bank","xy":[392.9,181.3],"n":3},{"id":"bank_0002029","kind":"bank","xy":[624.9,406.3],"n":2},{"id":"bank_0002033","kind":"bank","xy":[399.5,365.5],"n":4},{"id":"bank_0002277","kind":"collector","xy":[491.4,728.1],"n":19},{"id":"bank_0002278","kind":"bank","xy":[454.1,830.7],"n":3},{"id":"bank_0002279","kind":"bank","xy":[495.1,592.9],"n":3},{"id":"bank_0002280","kind":"bank","xy":[545.0,896.3],"n":3},{"id":"bank_0002281","kind":"bank","xy":[366.5,612.2],"n":3},{"id":"bank_0002282","kind":"bank","xy":[591.2,732.8],"n":2},{"id":"bank_0002283","kind":"bank","xy":[599.0,645.8],"n":3},{"id":"bank_0002284","kind":"bank","xy":[365.5,787.4],"n":2},{"id":"biz_0000008","kind":"business","xy":[736.3,393.7],"n":4},{"id":"biz_0000078","kind":"employer","xy":[400.9,688.1],"n":3},{"id":"biz_0000316","kind":"employer","xy":[790.4,776.8],"n":5},{"id":"dev_0000246","kind":"device","xy":[624.0,485.6],"n":2},{"id":"dev_0000310","kind":"device","xy":[776.5,291.5],"n":2},{"id":"dev_0001038","kind":"device","xy":[619.5,830.9],"n":2},{"id":"dev_0001127","kind":"device","xy":[619.0,566.7],"n":2},{"id":"dev_0001740","kind":"device","xy":[408.3,942.1],"n":2},{"id":"dev_0001741","kind":"device","xy":[447.5,638.4],"n":2},{"id":"doc_0001044","kind":"document","xy":[599.1,154.3],"n":5},{"id":"doc_0002001","kind":"document","xy":[250.6,668.3],"n":2},{"id":"doc_0002122","kind":"document","xy":[504.1,259.7],"n":2},{"id":"doc_0003133","kind":"document","xy":[247.1,812.5],"n":7},{"id":"email_0000269","kind":"email","xy":[793.4,576.0],"n":4},{"id":"email_0000420","kind":"email","xy":[698.3,771.9],"n":2},{"id":"email_0000567","kind":"email","xy":[227.1,564.1],"n":3},{"id":"emp_0000001","kind":"employee","xy":[846.2,238.7],"n":2},{"id":"person_0000312","kind":"person","xy":[729.2,547.5],"n":4}],"edges":[[0,0,0],[1,0,0],[2,0,0],[3,0,0],[0,1,0],[1,1,0],[2,1,0],[3,1,0],[5,2,0],[7,2,0],[9,3,0],[10,3,0],[21,5,0],[22,5,0],[23,6,0],[24,6,0],[25,6,0],[26,7,0],[27,7,0],[28,7,0],[17,9,0],[21,10,0],[42,11,0],[43,11,0],[44,11,0],[45,11,0],[46,12,0],[47,12,0],[48,12,0],[49,12,0],[50,12,0],[51,13,0],[52,13,0],[53,13,0],[54,13,0],[55,13,0],[56,13,0],[24,14,0],[49,14,0],[62,14,0],[17,16,0],[66,16,0],[71,18,0],[23,19,0],[55,19,0],[64,21,0],[65,21,0],[66,22,0],[67,22,0],[68,23,0],[69,23,0],[70,23,0],[71,24,0],[72,24,0],[73,24,0],[74,25,0],[75,25,0],[76,25,0],[11,26,0],[95,26,0],[77,27,0],[78,27,0],[79,27,0],[80,27,0],[81,29,0],[82,29,0],[83,29,0],[84,30,0],[85,30,0],[86,30,0],[87,31,0],[88,31,0],[89,31,0],[90,32,0],[91,32,0],[92,32,0],[93,33,0],[94,33,0],[95,34,0],[96,34,0],[97,34,0],[98,35,0],[99,35,0],[0,36,0],[1,36,0],[2,36,0],[3,36,0],[16,37,0],[17,37,0],[18,37,0],[37,38,0],[38,38,0],[39,38,0],[40,38,0],[41,38,0],[3,39,0],[4,39,0],[5,40,0],[6,40,0],[16,41,0],[40,41,0],[22,42,0],[45,42,0],[59,43,0],[89,43,0],[60,44,0],[95,44,0],[11,45,0],[12,45,0],[13,45,0],[14,45,0],[15,45,0],[92,46,0],[99,46,0],[14,47,0],[77,47,0],[57,48,0],[58,48,0],[59,48,0],[60,48,0],[61,48,0],[62,48,0],[63,48,0],[0,49,0],[1,49,0],[2,49,0],[3,49,0],[8,50,0],[9,50,0],[17,51,0],[19,51,0],[20,51,0],[5,52,0],[6,52,0],[0,53,0],[1,53,0],[2,53,0],[3,53,0],[33,28,1],[32,28,1],[30,28,1],[34,28,1],[35,28,1],[31,28,1],[29,28,1],[7,4,1],[5,4,1],[6,4,1],[23,20,1],[25,20,1],[24,20,1],[21,20,1],[22,20,1],[19,17,1],[18,17,1],[16,15,1],[9,8,1],[10,8,1]],"rings":[{"typology":"phantom_employer","title":"Phantom employer","story":"Applicants all claim the same employer, a company with no staff, no owner and no history.","size":5},{"typology":"loan_stacking","title":"Loan stacking","story":"One borrower files several loans close together, before any lender can report the others.","size":5},{"typology":"nested_mule","title":"Layered funnel","story":"Each bank account looks ordinary and takes only a few applications. All of them forward money to one receiving account that has no applications of its own.","size":8},{"typology":"document_reuse","title":"Reused forgery","story":"The same forged document is attached to several unrelated applications.","size":5},{"typology":"identity_match","title":"Shared identity","story":"Several applicants are one identity: same email, same tax ID, same birthday.","size":3},{"typology":"collusion","title":"Inside job","story":"One loan officer processed every application in the ring, from one shared device.","size":3}]},{"apps":[{"id":"0000009","xy":[243.9,727.4],"fraud":1,"ring":5,"amount":962,"purpose":"inventory","age":63,"day":91,"sme":0,"s":{"own":0.6416,"hubs":0.5991,"graph":0.7753}},{"id":"0000010","xy":[272.0,859.0],"fraud":1,"ring":5,"amount":2299,"purpose":"property","age":50,"day":92,"sme":0,"s":{"own":0.8732,"hubs":0.2785,"graph":0.6408}},{"id":"0000011","xy":[310.2,846.9],"fraud":1,"ring":5,"amount":246,"purpose":"working capital","age":20,"day":98,"sme":0,"s":{"own":0.1427,"hubs":0.8802,"graph":0.5409}},{"id":"0000012","xy":[647.1,866.2],"fraud":1,"ring":5,"amount":1214,"purpose":"property","age":39,"day":97,"sme":0,"s":{"own":0.1392,"hubs":0.4266,"graph":0.9547}},{"id":"0000013","xy":[683.9,502.4],"fraud":1,"ring":5,"amount":352,"purpose":"property","age":20,"day":100,"sme":0,"s":{"own":0.1073,"hubs":0.8875,"graph":0.9777}},{"id":"0000014","xy":[821.1,235.6],"fraud":1,"ring":5,"amount":4529,"purpose":"expansion","age":29,"day":101,"sme":0,"s":{"own":0.7578,"hubs":0.5642,"graph":0.1376}},{"id":"0000267","xy":[359.4,199.8],"fraud":1,"ring":2,"amount":4517,"purpose":"inventory","age":21,"day":165,"sme":0,"s":{"own":0.2717,"hubs":0.3319,"graph":0.4327}},{"id":"0000268","xy":[81.6,549.1],"fraud":1,"ring":2,"amount":1015,"purpose":"working capital","age":29,"day":160,"sme":0,"s":{"own":0.2057,"hubs":0.0704,"graph":0.0102}},{"id":"0000269","xy":[144.6,508.7],"fraud":1,"ring":2,"amount":3074,"purpose":"working capital","age":49,"day":180,"sme":0,"s":{"own":0.6209,"hubs":0.5414,"graph":0.703}},{"id":"0000270","xy":[175.6,341.7],"fraud":1,"ring":2,"amount":773,"purpose":"refinance","age":30,"day":102,"sme":0,"s":{"own":0.2606,"hubs":0.3712,"graph":0.0237}},{"id":"0000271","xy":[306.5,242.9],"fraud":1,"ring":2,"amount":972,"purpose":"equipment","age":40,"day":255,"sme":0,"s":{"own":0.1937,"hubs":0.093,"graph":0.5377}},{"id":"0000272","xy":[67.9,429.2],"fraud":1,"ring":2,"amount":270,"purpose":"inventory","age":48,"day":129,"sme":0,"s":{"own":0.1548,"hubs":0.5837,"graph":0.4355}},{"id":"0000273","xy":[184.2,630.8],"fraud":1,"ring":2,"amount":176,"purpose":"expansion","age":51,"day":192,"sme":0,"s":{"own":0.2522,"hubs":0.323,"graph":0.9896}},{"id":"0000274","xy":[125.2,734.3],"fraud":1,"ring":2,"amount":319,"purpose":"inventory","age":29,"day":132,"sme":0,"s":{"own":0.5666,"hubs":0.3385,"graph":0.0415}},{"id":"0000275","xy":[91.8,601.3],"fraud":1,"ring":2,"amount":2524,"purpose":"equipment","age":60,"day":168,"sme":0,"s":{"own":0.5317,"hubs":0.0717,"graph":0.0198}},{"id":"0000401","xy":[329.5,344.0],"fraud":1,"ring":0,"amount":1083,"purpose":"refinance","age":30,"day":336,"sme":0,"s":{"own":0.678,"hubs":0.3883,"graph":0.8916}},{"id":"0000402","xy":[363.9,275.6],"fraud":1,"ring":0,"amount":1225,"purpose":"equipment","age":21,"day":338,"sme":0,"s":{"own":0.5742,"hubs":0.6453,"graph":0.7207}},{"id":"0000403","xy":[446.5,894.3],"fraud":1,"ring":0,"amount":1101,"purpose":"expansion","age":19,"day":335,"sme":0,"s":{"own":0.1451,"hubs":0.4185,"graph":0.3405}},{"id":"0000404","xy":[322.0,615.8],"fraud":1,"ring":0,"amount":5345,"purpose":"inventory","age":39,"day":331,"sme":0,"s":{"own":0.187,"hubs":0.3701,"graph":0.6931}},{"id":"0000465","xy":[91.7,682.4],"fraud":1,"ring":4,"amount":928,"purpose":"refinance","age":20,"day":185,"sme":1,"s":{"own":0.0224,"hubs":0.2866,"graph":0.5955}},{"id":"0000466","xy":[197.7,554.7],"fraud":1,"ring":4,"amount":634,"purpose":"inventory","age":59,"day":170,"sme":1,"s":{"own":0.2273,"hubs":0.1757,"graph":0.8513}},{"id":"0000467","xy":[660.7,613.7],"fraud":1,"ring":4,"amount":693,"purpose":"property","age":39,"day":193,"sme":0,"s":{"own":0.361,"hubs":0.307,"graph":0.0869}},{"id":"0000468","xy":[439.7,311.2],"fraud":1,"ring":4,"amount":199,"purpose":"working capital","age":30,"day":151,"sme":0,"s":{"own":0.1764,"hubs":0.7844,"graph":0.2368}},{"id":"0000675","xy":[645.4,513.2],"fraud":1,"ring":1,"amount":439,"purpose":"equipment","age":18,"day":219,"sme":0,"s":{"own":0.3303,"hubs":0.0971,"graph":0.8247}},{"id":"0000676","xy":[628.2,228.6],"fraud":1,"ring":1,"amount":983,"purpose":"inventory","age":29,"day":326,"sme":0,"s":{"own":0.479,"hubs":0.3733,"graph":0.8294}},{"id":"0000677","xy":[704.3,250.6],"fraud":1,"ring":1,"amount":6209,"purpose":"expansion","age":41,"day":148,"sme":0,"s":{"own":0.8151,"hubs":0.0306,"graph":0.9137}},{"id":"0000678","xy":[730.6,200.3],"fraud":1,"ring":1,"amount":879,"purpose":"equipment","age":29,"day":128,"sme":0,"s":{"own":0.0288,"hubs":0.4642,"graph":0.4431}},{"id":"0000679","xy":[361.2,133.3],"fraud":1,"ring":1,"amount":393,"purpose":"refinance","age":41,"day":184,"sme":0,"s":{"own":0.3265,"hubs":0.1931,"graph":0.0346}},{"id":"0000715","xy":[854.0,761.8],"fraud":1,"ring":3,"amount":4994,"purpose":"equipment","age":19,"day":69,"sme":0,"s":{"own":0.3061,"hubs":0.0558,"graph":0.9433}},{"id":"0000716","xy":[947.0,573.8],"fraud":1,"ring":3,"amount":667,"purpose":"property","age":30,"day":224,"sme":0,"s":{"own":0.0961,"hubs":0.0535,"graph":0.5858}},{"id":"0000717","xy":[734.1,827.4],"fraud":1,"ring":3,"amount":919,"purpose":"equipment","age":20,"day":191,"sme":0,"s":{"own":0.7988,"hubs":0.0399,"graph":0.6996}},{"id":"0000718","xy":[739.6,630.6],"fraud":1,"ring":3,"amount":317,"purpose":"refinance","age":20,"day":166,"sme":0,"s":{"own":0.516,"hubs":0.046,"graph":0.4262}},{"id":"0000719","xy":[897.8,548.9],"fraud":1,"ring":3,"amount":536,"purpose":"working capital","age":38,"day":205,"sme":0,"s":{"own":0.203,"hubs":0.0137,"graph":0.0235}},{"id":"0000896","xy":[718.5,886.2],"fraud":0,"ring":-1,"amount":198,"purpose":"property","age":21,"day":236,"sme":0,"s":{"own":0.6764,"hubs":0.0439,"graph":0.0932}},{"id":"0000899","xy":[368.2,42.6],"fraud":0,"ring":-1,"amount":311,"purpose":"equipment","age":29,"day":59,"sme":0,"s":{"own":0.6609,"hubs":0.7961,"graph":0.0787}},{"id":"0000937","xy":[94.4,511.2],"fraud":0,"ring":-1,"amount":3070,"purpose":"expansion","age":31,"day":201,"sme":1,"s":{"own":0.0087,"hubs":0.01,"graph":0.0012}},{"id":"0000939","xy":[214.6,242.6],"fraud":0,"ring":-1,"amount":601,"purpose":"property","age":50,"day":313,"sme":1,"s":{"own":0.2303,"hubs":0.0124,"graph":0.0039}},{"id":"0000945","xy":[523.7,956.2],"fraud":0,"ring":-1,"amount":579,"purpose":"refinance","age":31,"day":325,"sme":0,"s":{"own":0.5671,"hubs":0.4194,"graph":0.1003}},{"id":"0000953","xy":[732.6,492.0],"fraud":0,"ring":-1,"amount":6251,"purpose":"inventory","age":39,"day":164,"sme":0,"s":{"own":0.6357,"hubs":0.1716,"graph":0.1142}},{"id":"0000982","xy":[186.8,285.3],"fraud":0,"ring":-1,"amount":3895,"purpose":"property","age":39,"day":272,"sme":1,"s":{"own":0.0181,"hubs":0.0127,"graph":0.0026}},{"id":"0001019","xy":[421.8,494.7],"fraud":0,"ring":-1,"amount":1175,"purpose":"equipment","age":29,"day":363,"sme":0,"s":{"own":0.1227,"hubs":0.0327,"graph":0.0046}},{"id":"0001026","xy":[230.3,875.5],"fraud":0,"ring":-1,"amount":1915,"purpose":"working capital","age":50,"day":3,"sme":1,"s":{"own":0.0275,"hubs":0.0076,"graph":0.0021}},{"id":"0001028","xy":[891.7,709.3],"fraud":0,"ring":-1,"amount":2342,"purpose":"equipment","age":20,"day":152,"sme":1,"s":{"own":0.0287,"hubs":0.0089,"graph":0.0027}},{"id":"0001034","xy":[444.9,960.0],"fraud":0,"ring":-1,"amount":531,"purpose":"refinance","age":31,"day":65,"sme":1,"s":{"own":0.0119,"hubs":0.0118,"graph":0.0065}},{"id":"0001046","xy":[561.6,205.9],"fraud":0,"ring":-1,"amount":627,"purpose":"refinance","age":30,"day":96,"sme":1,"s":{"own":0.3412,"hubs":0.0734,"graph":0.0034}},{"id":"0001133","xy":[53.0,655.1],"fraud":0,"ring":-1,"amount":533,"purpose":"property","age":21,"day":42,"sme":0,"s":{"own":0.2807,"hubs":0.4353,"graph":0.0186}},{"id":"0001466","xy":[584.1,542.2],"fraud":0,"ring":-1,"amount":583,"purpose":"expansion","age":21,"day":136,"sme":0,"s":{"own":0.575,"hubs":0.1177,"graph":0.3099}},{"id":"0001467","xy":[381.9,554.3],"fraud":0,"ring":-1,"amount":454,"purpose":"refinance","age":30,"day":171,"sme":0,"s":{"own":0.3785,"hubs":0.0346,"graph":0.3981}},{"id":"0001468","xy":[547.2,801.9],"fraud":0,"ring":-1,"amount":422,"purpose":"expansion","age":10,"day":281,"sme":0,"s":{"own":0.4065,"hubs":0.0647,"graph":0.014}},{"id":"0001529","xy":[666.4,197.6],"fraud":0,"ring":-1,"amount":262,"purpose":"refinance","age":19,"day":207,"sme":0,"s":{"own":0.6526,"hubs":0.1037,"graph":0.0281}},{"id":"0001530","xy":[196.0,179.3],"fraud":0,"ring":-1,"amount":307,"purpose":"working capital","age":30,"day":202,"sme":1,"s":{"own":0.0256,"hubs":0.0353,"graph":0.0018}},{"id":"0001531","xy":[53.0,466.3],"fraud":0,"ring":-1,"amount":2431,"purpose":"property","age":19,"day":265,"sme":1,"s":{"own":0.0756,"hubs":0.002,"graph":0.0009}},{"id":"0001532","xy":[68.0,318.6],"fraud":0,"ring":-1,"amount":3903,"purpose":"refinance","age":32,"day":248,"sme":0,"s":{"own":0.5633,"hubs":0.0403,"graph":0.0174}},{"id":"0001533","xy":[106.0,267.5],"fraud":0,"ring":-1,"amount":747,"purpose":"inventory","age":49,"day":283,"sme":1,"s":{"own":0.0177,"hubs":0.0017,"graph":0.0008}},{"id":"0001534","xy":[769.8,216.0],"fraud":0,"ring":-1,"amount":930,"purpose":"equipment","age":11,"day":196,"sme":1,"s":{"own":0.0141,"hubs":0.0009,"graph":0.0018}},{"id":"0001535","xy":[667.1,407.4],"fraud":0,"ring":-1,"amount":590,"purpose":"expansion","age":29,"day":223,"sme":1,"s":{"own":0.0661,"hubs":0.0028,"graph":0.0011}},{"id":"0001536","xy":[424.1,140.8],"fraud":0,"ring":-1,"amount":564,"purpose":"working capital","age":21,"day":212,"sme":0,"s":{"own":0.1398,"hubs":0.0056,"graph":0.0022}},{"id":"0001537","xy":[678.5,752.0],"fraud":0,"ring":-1,"amount":336,"purpose":"working capital","age":51,"day":200,"sme":1,"s":{"own":0.008,"hubs":0.0011,"graph":0.001}},{"id":"0001538","xy":[692.5,655.9],"fraud":0,"ring":-1,"amount":1528,"purpose":"refinance","age":31,"day":161,"sme":1,"s":{"own":0.0362,"hubs":0.005,"graph":0.0008}},{"id":"0001539","xy":[571.8,880.2],"fraud":0,"ring":-1,"amount":2043,"purpose":"property","age":48,"day":164,"sme":1,"s":{"own":0.006,"hubs":0.0008,"graph":0.0004}},{"id":"0001540","xy":[922.7,327.0],"fraud":0,"ring":-1,"amount":1136,"purpose":"refinance","age":40,"day":189,"sme":0,"s":{"own":0.4335,"hubs":0.0892,"graph":0.063}},{"id":"0001541","xy":[837.9,527.4],"fraud":0,"ring":-1,"amount":2044,"purpose":"expansion","age":49,"day":159,"sme":1,"s":{"own":0.0351,"hubs":0.0104,"graph":0.0007}},{"id":"0001542","xy":[422.4,397.3],"fraud":0,"ring":-1,"amount":1689,"purpose":"working capital","age":29,"day":267,"sme":1,"s":{"own":0.0097,"hubs":0.0059,"graph":0.0005}},{"id":"0001543","xy":[618.0,631.6],"fraud":0,"ring":-1,"amount":3416,"purpose":"inventory","age":40,"day":196,"sme":1,"s":{"own":0.0118,"hubs":0.0013,"graph":0.0016}},{"id":"0001544","xy":[639.9,724.6],"fraud":0,"ring":-1,"amount":4482,"purpose":"refinance","age":9,"day":232,"sme":1,"s":{"own":0.0129,"hubs":0.0132,"graph":0.0006}},{"id":"0001647","xy":[836.0,286.1],"fraud":0,"ring":-1,"amount":4019,"purpose":"inventory","age":29,"day":39,"sme":1,"s":{"own":0.0227,"hubs":0.0482,"graph":0.0037}},{"id":"0001648","xy":[944.6,471.4],"fraud":0,"ring":-1,"amount":4777,"purpose":"refinance","age":40,"day":133,"sme":1,"s":{"own":0.0194,"hubs":0.009,"graph":0.0027}},{"id":"0001649","xy":[746.1,421.2],"fraud":0,"ring":-1,"amount":489,"purpose":"refinance","age":20,"day":189,"sme":1,"s":{"own":0.0256,"hubs":0.0158,"graph":0.0048}},{"id":"0001650","xy":[877.3,610.2],"fraud":0,"ring":-1,"amount":591,"purpose":"property","age":29,"day":302,"sme":1,"s":{"own":0.0309,"hubs":0.0189,"graph":0.0017}},{"id":"0001651","xy":[810.7,610.7],"fraud":0,"ring":-1,"amount":781,"purpose":"equipment","age":30,"day":34,"sme":1,"s":{"own":0.0059,"hubs":0.0143,"graph":0.001}},{"id":"0001652","xy":[780.5,584.5],"fraud":0,"ring":-1,"amount":890,"purpose":"equipment","age":41,"day":59,"sme":0,"s":{"own":0.2049,"hubs":0.0455,"graph":0.0562}},{"id":"0001653","xy":[729.1,532.4],"fraud":0,"ring":-1,"amount":693,"purpose":"expansion","age":21,"day":280,"sme":1,"s":{"own":0.055,"hubs":0.0045,"graph":0.0007}},{"id":"0001654","xy":[941.0,413.6],"fraud":0,"ring":-1,"amount":926,"purpose":"expansion","age":10,"day":68,"sme":0,"s":{"own":0.0437,"hubs":0.2949,"graph":0.2635}},{"id":"0001655","xy":[871.1,254.3],"fraud":0,"ring":-1,"amount":877,"purpose":"property","age":9,"day":73,"sme":1,"s":{"own":0.104,"hubs":0.0134,"graph":0.0024}},{"id":"0001656","xy":[717.4,387.8],"fraud":0,"ring":-1,"amount":858,"purpose":"working capital","age":50,"day":295,"sme":1,"s":{"own":0.0402,"hubs":0.009,"graph":0.0047}},{"id":"0001657","xy":[771.9,523.6],"fraud":0,"ring":-1,"amount":155,"purpose":"inventory","age":50,"day":273,"sme":0,"s":{"own":0.3055,"hubs":0.2731,"graph":0.5356}},{"id":"0001658","xy":[771.4,163.8],"fraud":0,"ring":-1,"amount":1321,"purpose":"property","age":62,"day":243,"sme":1,"s":{"own":0.0769,"hubs":0.0075,"graph":0.0153}},{"id":"0001659","xy":[891.2,302.4],"fraud":0,"ring":-1,"amount":3540,"purpose":"equipment","age":41,"day":212,"sme":1,"s":{"own":0.0181,"hubs":0.0491,"graph":0.0026}},{"id":"0001660","xy":[906.1,368.9],"fraud":0,"ring":-1,"amount":2224,"purpose":"property","age":29,"day":89,"sme":1,"s":{"own":0.0142,"hubs":0.0048,"graph":0.002}},{"id":"0001685","xy":[491.4,455.1],"fraud":0,"ring":-1,"amount":789,"purpose":"working capital","age":58,"day":232,"sme":1,"s":{"own":0.1405,"hubs":0.0049,"graph":0.0026}},{"id":"0001686","xy":[223.6,585.2],"fraud":0,"ring":-1,"amount":518,"purpose":"inventory","age":30,"day":353,"sme":1,"s":{"own":0.0143,"hubs":0.006,"graph":0.0029}},{"id":"0001687","xy":[464.8,570.9],"fraud":0,"ring":-1,"amount":791,"purpose":"refinance","age":38,"day":60,"sme":1,"s":{"own":0.064,"hubs":0.0204,"graph":0.0073}},{"id":"0001688","xy":[445.7,356.1],"fraud":0,"ring":-1,"amount":581,"purpose":"property","age":19,"day":220,"sme":0,"s":{"own":0.2503,"hubs":0.31,"graph":0.0594}},{"id":"0001689","xy":[258.0,627.2],"fraud":0,"ring":-1,"amount":706,"purpose":"refinance","age":40,"day":126,"sme":1,"s":{"own":0.0193,"hubs":0.013,"graph":0.001}},{"id":"0001690","xy":[230.0,474.9],"fraud":0,"ring":-1,"amount":539,"purpose":"equipment","age":30,"day":282,"sme":1,"s":{"own":0.0123,"hubs":0.0163,"graph":0.0015}},{"id":"0001895","xy":[463.9,763.2],"fraud":0,"ring":-1,"amount":484,"purpose":"refinance","age":29,"day":122,"sme":1,"s":{"own":0.0091,"hubs":0.0416,"graph":0.0152}},{"id":"0001896","xy":[363.1,710.2],"fraud":0,"ring":-1,"amount":3715,"purpose":"inventory","age":31,"day":238,"sme":1,"s":{"own":0.0383,"hubs":0.0215,"graph":0.0074}},{"id":"0001897","xy":[370.3,887.5],"fraud":0,"ring":-1,"amount":762,"purpose":"working capital","age":18,"day":96,"sme":1,"s":{"own":0.038,"hubs":0.0033,"graph":0.0044}},{"id":"0001918","xy":[252.9,262.8],"fraud":0,"ring":-1,"amount":333,"purpose":"equipment","age":41,"day":37,"sme":1,"s":{"own":0.0195,"hubs":0.0521,"graph":0.0178}},{"id":"0001919","xy":[248.7,116.4],"fraud":0,"ring":-1,"amount":6098,"purpose":"equipment","age":41,"day":60,"sme":0,"s":{"own":0.888,"hubs":0.0708,"graph":0.1232}},{"id":"0002351","xy":[656.8,75.6],"fraud":0,"ring":-1,"amount":410,"purpose":"property","age":32,"day":309,"sme":1,"s":{"own":0.0068,"hubs":0.0039,"graph":0.0008}},{"id":"0002352","xy":[691.5,108.8],"fraud":0,"ring":-1,"amount":417,"purpose":"working capital","age":30,"day":293,"sme":1,"s":{"own":0.013,"hubs":0.0415,"graph":0.0027}},{"id":"0002353","xy":[565.2,52.2],"fraud":0,"ring":-1,"amount":5224,"purpose":"property","age":51,"day":136,"sme":0,"s":{"own":0.1138,"hubs":0.0233,"graph":0.012}},{"id":"0002354","xy":[521.8,40.2],"fraud":0,"ring":-1,"amount":250,"purpose":"inventory","age":40,"day":123,"sme":1,"s":{"own":0.0173,"hubs":0.0023,"graph":0.0026}},{"id":"0002355","xy":[284.5,449.5],"fraud":0,"ring":-1,"amount":732,"purpose":"property","age":41,"day":300,"sme":0,"s":{"own":0.272,"hubs":0.0158,"graph":0.0246}},{"id":"0002356","xy":[609.5,50.2],"fraud":0,"ring":-1,"amount":270,"purpose":"expansion","age":30,"day":307,"sme":1,"s":{"own":0.0169,"hubs":0.0014,"graph":0.0013}},{"id":"0002357","xy":[347.3,89.4],"fraud":0,"ring":-1,"amount":865,"purpose":"property","age":29,"day":178,"sme":0,"s":{"own":0.2473,"hubs":0.0188,"graph":0.012}},{"id":"0002701","xy":[625.0,825.6],"fraud":0,"ring":-1,"amount":311,"purpose":"refinance","age":51,"day":277,"sme":1,"s":{"own":0.0149,"hubs":0.0914,"graph":0.0256}},{"id":"0002702","xy":[386.0,474.6],"fraud":0,"ring":-1,"amount":361,"purpose":"property","age":40,"day":277,"sme":0,"s":{"own":0.4806,"hubs":0.2763,"graph":0.7352}},{"id":"0002703","xy":[418.5,668.1],"fraud":0,"ring":-1,"amount":514,"purpose":"property","age":51,"day":276,"sme":1,"s":{"own":0.0423,"hubs":0.0169,"graph":0.0324}}],"ents":[{"id":"addr_0000357","kind":"address","xy":[273.7,332.6],"n":2},{"id":"addr_0000426","kind":"address","xy":[165.8,702.8],"n":2},{"id":"addr_0001831","kind":"address","xy":[524.9,551.9],"n":3},{"id":"addr_0002481","kind":"address","xy":[380.4,783.3],"n":3},{"id":"addr_0002482","kind":"address","xy":[498.4,885.7],"n":3},{"id":"bank_0000004","kind":"bank","xy":[447.1,829.0],"n":6},{"id":"bank_0000163","kind":"bank","xy":[122.3,641.9],"n":3},{"id":"bank_0000285","kind":"bank","xy":[392.9,599.1],"n":3},{"id":"bank_0000545","kind":"bank","xy":[458.3,187.8],"n":2},{"id":"bank_0000877","kind":"bank","xy":[815.6,798.2],"n":2},{"id":"bank_0001304","kind":"collector","xy":[500.7,390.3],"n":18},{"id":"bank_0001305","kind":"bank","xy":[439.8,245.3],"n":2},{"id":"bank_0001306","kind":"bank","xy":[115.2,350.6],"n":3},{"id":"bank_0001307","kind":"bank","xy":[605.0,297.5],"n":3},{"id":"bank_0001308","kind":"bank","xy":[529.1,662.0],"n":4},{"id":"bank_0001309","kind":"bank","xy":[765.9,349.6],"n":3},{"id":"bank_0001310","kind":"bank","xy":[488.6,499.3],"n":3},{"id":"bank_0001590","kind":"bank","xy":[619.8,908.1],"n":2},{"id":"bank_0001676","kind":"bank","xy":[594.6,404.3],"n":2},{"id":"bank_0001936","kind":"bank","xy":[511.4,122.4],"n":8},{"id":"bank_0001977","kind":"collector","xy":[613.0,166.0],"n":4},{"id":"bank_0001980","kind":"bank","xy":[523.4,250.0],"n":2},{"id":"bank_0001981","kind":"bank","xy":[542.1,328.0],"n":1},{"id":"bank_0001982","kind":"bank","xy":[427.7,81.3],"n":1},{"id":"biz_0000067","kind":"employer","xy":[838.7,677.6],"n":5},{"id":"biz_0000744","kind":"business","xy":[325.0,779.0],"n":3},{"id":"dev_0000186","kind":"device","xy":[147.5,434.5],"n":7},{"id":"dev_0000341","kind":"device","xy":[445.9,623.7],"n":2},{"id":"dev_0001255","kind":"device","xy":[632.8,469.0],"n":2},{"id":"dev_0001301","kind":"device","xy":[162.9,233.3],"n":2},{"id":"dev_0001404","kind":"device","xy":[838.3,439.5],"n":16},{"id":"dev_0001430","kind":"device","xy":[212.2,402.6],"n":2},{"id":"dev_0001836","kind":"device","xy":[459.0,40.0],"n":2},{"id":"doc_0001020","kind":"document","xy":[683.9,310.7],"n":4},{"id":"doc_0001553","kind":"document","xy":[756.4,701.2],"n":2},{"id":"doc_0002500","kind":"document","xy":[613.2,111.5],"n":2},{"id":"doc_0002538","kind":"document","xy":[297.2,525.8],"n":6},{"id":"doc_0004171","kind":"document","xy":[773.9,741.4],"n":2},{"id":"email_0000012","kind":"email","xy":[824.4,325.6],"n":2},{"id":"email_0000290","kind":"email","xy":[368.4,376.2],"n":2},{"id":"email_0000347","kind":"email","xy":[294.9,410.9],"n":2},{"id":"email_0001226","kind":"email","xy":[305.5,704.0],"n":3},{"id":"email_0001611","kind":"email","xy":[540.3,731.0],"n":3},{"id":"email_0001632","kind":"email","xy":[239.7,176.9],"n":2},{"id":"email_0002290","kind":"email","xy":[586.9,757.0],"n":3},{"id":"person_0000338","kind":"person","xy":[301.0,182.8],"n":2},{"id":"person_0001371","kind":"person","xy":[559.0,615.6],"n":3},{"id":"person_0001782","kind":"person","xy":[248.8,792.7],"n":3}],"edges":[[15,0,0],[16,0,0],[19,1,0],[20,1,0],[46,2,0],[47,2,0],[48,2,0],[85,3,0],[86,3,0],[87,3,0],[85,4,0],[86,4,0],[87,4,0],[0,5,0],[1,5,0],[2,5,0],[3,5,0],[4,5,0],[97,5,0],[7,6,0],[13,6,0],[14,6,0],[15,7,0],[17,7,0],[18,7,0],[24,8,0],[27,8,0],[28,9,0],[42,9,0],[49,11,0],[50,11,0],[51,12,0],[52,12,0],[53,12,0],[54,13,0],[55,13,0],[56,13,0],[40,14,0],[57,14,0],[58,14,0],[59,14,0],[32,15,0],[60,15,0],[61,15,0],[62,16,0],[63,16,0],[64,16,0],[30,17,0],[87,17,0],[44,18,0],[63,18,0],[10,19,0],[90,19,0],[91,19,0],[92,19,0],[93,19,0],[94,19,0],[95,19,0],[96,19,0],[25,21,0],[88,21,0],[98,22,0],[56,23,0],[28,24,0],[29,24,0],[30,24,0],[31,24,0],[32,24,0],[85,25,0],[86,25,0],[87,25,0],[6,26,0],[7,26,0],[8,26,0],[9,26,0],[10,26,0],[11,26,0],[12,26,0],[20,27,0],[21,27,0],[31,28,0],[46,28,0],[50,29,0],[88,29,0],[58,30,0],[61,30,0],[65,30,0],[66,30,0],[67,30,0],[68,30,0],[69,30,0],[70,30,0],[71,30,0],[72,30,0],[73,30,0],[74,30,0],[75,30,0],[76,30,0],[77,30,0],[78,30,0],[9,31,0],[80,31,0],[34,32,0],[44,32,0],[23,33,0],[24,33,0],[25,33,0],[26,33,0],[21,34,0],[42,34,0],[6,35,0],[76,35,0],[79,36,0],[80,36,0],[81,36,0],[82,36,0],[83,36,0],[84,36,0],[68,37,0],[70,37,0],[4,38,0],[5,38,0],[15,39,0],[16,39,0],[20,40,0],[22,40,0],[46,41,0],[47,41,0],[48,41,0],[85,42,0],[86,42,0],[87,42,0],[88,43,0],[89,43,0],[97,44,0],[98,44,0],[99,44,0],[15,45,0],[16,45,0],[46,46,0],[47,46,0],[48,46,0],[85,47,0],[86,47,0],[87,47,0],[21,20,1],[23,20,1],[22,20,1],[16,10,1],[13,10,1],[12,10,1],[11,10,1],[15,10,1],[14,10,1]],"rings":[{"typology":"loan_stacking","title":"Loan stacking","story":"One borrower files several loans close together, before any lender can report the others.","size":4},{"typology":"document_reuse","title":"Reused forgery","story":"The same forged document is attached to several unrelated applications.","size":5},{"typology":"device_farm","title":"Device farm","story":"Applications from many different people, all filed from the same device within days.","size":9},{"typology":"phantom_employer","title":"Phantom employer","story":"Applicants all claim the same employer, a company with no staff, no owner and no history.","size":5},{"typology":"shell_company","title":"Shell companies","story":"Businesses with one employee and almost no revenue, all registered at the same address.","size":4},{"typology":"money_mule","title":"Mule account","story":"Different applicants, each with their own device and documents, all pay their loans into one bank account.","size":6}]},{"apps":[{"id":"0000267","xy":[113.9,414.0],"fraud":1,"ring":3,"amount":4517,"purpose":"inventory","age":21,"day":165,"sme":0,"s":{"own":0.2717,"hubs":0.3319,"graph":0.4327}},{"id":"0000268","xy":[157.6,368.3],"fraud":1,"ring":3,"amount":1015,"purpose":"working capital","age":29,"day":160,"sme":0,"s":{"own":0.2057,"hubs":0.0704,"graph":0.0102}},{"id":"0000269","xy":[59.2,421.2],"fraud":1,"ring":3,"amount":3074,"purpose":"working capital","age":49,"day":180,"sme":0,"s":{"own":0.6209,"hubs":0.5414,"graph":0.703}},{"id":"0000270","xy":[117.7,596.1],"fraud":1,"ring":3,"amount":773,"purpose":"refinance","age":30,"day":102,"sme":0,"s":{"own":0.2606,"hubs":0.3712,"graph":0.0237}},{"id":"0000271","xy":[144.4,543.4],"fraud":1,"ring":3,"amount":972,"purpose":"equipment","age":40,"day":255,"sme":0,"s":{"own":0.1937,"hubs":0.093,"graph":0.5377}},{"id":"0000272","xy":[40.0,519.7],"fraud":1,"ring":3,"amount":270,"purpose":"inventory","age":48,"day":129,"sme":0,"s":{"own":0.1548,"hubs":0.5837,"graph":0.4355}},{"id":"0000273","xy":[65.5,567.7],"fraud":1,"ring":3,"amount":176,"purpose":"expansion","age":51,"day":192,"sme":0,"s":{"own":0.2522,"hubs":0.323,"graph":0.9896}},{"id":"0000274","xy":[244.8,250.2],"fraud":1,"ring":3,"amount":319,"purpose":"inventory","age":29,"day":132,"sme":0,"s":{"own":0.5666,"hubs":0.3385,"graph":0.0415}},{"id":"0000275","xy":[317.3,265.5],"fraud":1,"ring":3,"amount":2524,"purpose":"equipment","age":60,"day":168,"sme":0,"s":{"own":0.5317,"hubs":0.0717,"graph":0.0198}},{"id":"0000346","xy":[588.1,104.1],"fraud":1,"ring":0,"amount":740,"purpose":"property","age":31,"day":286,"sme":1,"s":{"own":0.0146,"hubs":0.7557,"graph":0.0554}},{"id":"0000347","xy":[573.9,217.6],"fraud":1,"ring":0,"amount":525,"purpose":"refinance","age":29,"day":284,"sme":1,"s":{"own":0.1097,"hubs":0.6101,"graph":0.258}},{"id":"0000348","xy":[684.9,204.4],"fraud":1,"ring":0,"amount":603,"purpose":"refinance","age":29,"day":283,"sme":1,"s":{"own":0.1178,"hubs":0.7497,"graph":0.3541}},{"id":"0000430","xy":[900.9,679.3],"fraud":1,"ring":5,"amount":534,"purpose":"property","age":69,"day":249,"sme":0,"s":{"own":0.1497,"hubs":0.3227,"graph":0.7564}},{"id":"0000431","xy":[878.5,739.3],"fraud":1,"ring":5,"amount":5208,"purpose":"expansion","age":50,"day":275,"sme":0,"s":{"own":0.2045,"hubs":0.5935,"graph":0.8325}},{"id":"0000432","xy":[780.2,697.9],"fraud":1,"ring":5,"amount":631,"purpose":"working capital","age":21,"day":229,"sme":0,"s":{"own":0.6913,"hubs":0.5993,"graph":0.9668}},{"id":"0000433","xy":[960.0,577.2],"fraud":1,"ring":5,"amount":338,"purpose":"equipment","age":20,"day":284,"sme":0,"s":{"own":0.7045,"hubs":0.7374,"graph":0.8775}},{"id":"0000473","xy":[319.1,91.4],"fraud":1,"ring":4,"amount":1134,"purpose":"equipment","age":40,"day":317,"sme":1,"s":{"own":0.0426,"hubs":0.3,"graph":0.9393}},{"id":"0000474","xy":[300.5,188.0],"fraud":1,"ring":4,"amount":413,"purpose":"working capital","age":39,"day":322,"sme":1,"s":{"own":0.167,"hubs":0.1906,"graph":0.916}},{"id":"0000475","xy":[210.0,182.0],"fraud":1,"ring":4,"amount":673,"purpose":"inventory","age":20,"day":318,"sme":0,"s":{"own":0.3685,"hubs":0.7749,"graph":0.1083}},{"id":"0000599","xy":[409.0,165.2],"fraud":1,"ring":2,"amount":1397,"purpose":"equipment","age":20,"day":256,"sme":0,"s":{"own":0.7088,"hubs":0.44,"graph":0.7964}},{"id":"0000600","xy":[408.6,72.5],"fraud":1,"ring":2,"amount":362,"purpose":"refinance","age":30,"day":100,"sme":0,"s":{"own":0.4614,"hubs":0.3795,"graph":0.4026}},{"id":"0000601","xy":[490.1,59.0],"fraud":1,"ring":2,"amount":3785,"purpose":"equipment","age":29,"day":153,"sme":0,"s":{"own":0.4061,"hubs":0.3216,"graph":0.9066}},{"id":"0000737","xy":[680.3,934.2],"fraud":1,"ring":1,"amount":397,"purpose":"refinance","age":20,"day":162,"sme":0,"s":{"own":0.3291,"hubs":0.2642,"graph":0.219}},{"id":"0000738","xy":[552.0,880.0],"fraud":1,"ring":1,"amount":3913,"purpose":"expansion","age":51,"day":154,"sme":0,"s":{"own":0.2831,"hubs":0.1664,"graph":0.8896}},{"id":"0000739","xy":[681.6,866.6],"fraud":1,"ring":1,"amount":877,"purpose":"working capital","age":70,"day":356,"sme":0,"s":{"own":0.4265,"hubs":0.1407,"graph":0.3181}},{"id":"0000740","xy":[576.4,960.0],"fraud":1,"ring":1,"amount":3787,"purpose":"working capital","age":50,"day":90,"sme":0,"s":{"own":0.4174,"hubs":0.2659,"graph":0.6938}},{"id":"0000847","xy":[821.6,602.9],"fraud":0,"ring":-1,"amount":1003,"purpose":"refinance","age":21,"day":132,"sme":1,"s":{"own":0.014,"hubs":0.0066,"graph":0.0023}},{"id":"0000893","xy":[882.9,799.9],"fraud":0,"ring":-1,"amount":3176,"purpose":"expansion","age":30,"day":114,"sme":1,"s":{"own":0.0176,"hubs":0.0144,"graph":0.0009}},{"id":"0000896","xy":[735.8,911.0],"fraud":0,"ring":-1,"amount":198,"purpose":"property","age":21,"day":236,"sme":0,"s":{"own":0.6764,"hubs":0.0439,"graph":0.0932}},{"id":"0000901","xy":[875.6,601.6],"fraud":0,"ring":-1,"amount":1376,"purpose":"working capital","age":20,"day":351,"sme":1,"s":{"own":0.0269,"hubs":0.0452,"graph":0.0007}},{"id":"0000904","xy":[512.5,959.3],"fraud":0,"ring":-1,"amount":2900,"purpose":"equipment","age":40,"day":227,"sme":0,"s":{"own":0.7399,"hubs":0.0953,"graph":0.0065}},{"id":"0000907","xy":[541.0,40.0],"fraud":0,"ring":-1,"amount":443,"purpose":"equipment","age":29,"day":204,"sme":1,"s":{"own":0.0175,"hubs":0.008,"graph":0.0016}},{"id":"0000939","xy":[745.1,760.6],"fraud":0,"ring":-1,"amount":601,"purpose":"property","age":50,"day":313,"sme":1,"s":{"own":0.2303,"hubs":0.0124,"graph":0.0039}},{"id":"0000973","xy":[416.0,954.7],"fraud":0,"ring":-1,"amount":579,"purpose":"equipment","age":30,"day":134,"sme":1,"s":{"own":0.0636,"hubs":0.0262,"graph":0.0048}},{"id":"0000996","xy":[495.7,899.6],"fraud":0,"ring":-1,"amount":7169,"purpose":"equipment","age":30,"day":320,"sme":0,"s":{"own":0.4348,"hubs":0.1883,"graph":0.0747}},{"id":"0001128","xy":[60.4,631.6],"fraud":0,"ring":-1,"amount":557,"purpose":"inventory","age":39,"day":38,"sme":1,"s":{"own":0.0275,"hubs":0.0112,"graph":0.0007}},{"id":"0001469","xy":[434.5,871.8],"fraud":0,"ring":-1,"amount":269,"purpose":"inventory","age":20,"day":57,"sme":1,"s":{"own":0.0373,"hubs":0.0228,"graph":0.0008}},{"id":"0001470","xy":[184.0,825.6],"fraud":0,"ring":-1,"amount":1304,"purpose":"refinance","age":30,"day":126,"sme":1,"s":{"own":0.0131,"hubs":0.0016,"graph":0.0019}},{"id":"0001471","xy":[328.6,918.3],"fraud":0,"ring":-1,"amount":1781,"purpose":"working capital","age":10,"day":132,"sme":0,"s":{"own":0.1293,"hubs":0.0493,"graph":0.0883}},{"id":"0001472","xy":[281.8,907.5],"fraud":0,"ring":-1,"amount":1745,"purpose":"refinance","age":49,"day":170,"sme":1,"s":{"own":0.0282,"hubs":0.0111,"graph":0.001}},{"id":"0001473","xy":[264.1,719.5],"fraud":0,"ring":-1,"amount":6564,"purpose":"working capital","age":21,"day":53,"sme":1,"s":{"own":0.0631,"hubs":0.057,"graph":0.0091}},{"id":"0001474","xy":[367.8,900.9],"fraud":0,"ring":-1,"amount":1418,"purpose":"expansion","age":50,"day":261,"sme":0,"s":{"own":0.1763,"hubs":0.0217,"graph":0.0421}},{"id":"0001475","xy":[219.3,680.1],"fraud":0,"ring":-1,"amount":321,"purpose":"equipment","age":49,"day":259,"sme":1,"s":{"own":0.0119,"hubs":0.0032,"graph":0.0062}},{"id":"0001476","xy":[376.0,795.5],"fraud":0,"ring":-1,"amount":494,"purpose":"working capital","age":30,"day":178,"sme":1,"s":{"own":0.0138,"hubs":0.0088,"graph":0.0009}},{"id":"0001477","xy":[166.4,783.0],"fraud":0,"ring":-1,"amount":5219,"purpose":"inventory","age":40,"day":282,"sme":1,"s":{"own":0.1806,"hubs":0.0066,"graph":0.0006}},{"id":"0001478","xy":[218.3,874.2],"fraud":0,"ring":-1,"amount":619,"purpose":"property","age":40,"day":181,"sme":1,"s":{"own":0.0032,"hubs":0.0025,"graph":0.0006}},{"id":"0001479","xy":[371.0,851.4],"fraud":0,"ring":-1,"amount":866,"purpose":"equipment","age":30,"day":295,"sme":1,"s":{"own":0.0205,"hubs":0.0119,"graph":0.0012}},{"id":"0001480","xy":[210.1,753.4],"fraud":0,"ring":-1,"amount":414,"purpose":"refinance","age":29,"day":16,"sme":1,"s":{"own":0.0159,"hubs":0.0024,"graph":0.0008}},{"id":"0001889","xy":[521.0,306.1],"fraud":0,"ring":-1,"amount":7451,"purpose":"property","age":48,"day":242,"sme":0,"s":{"own":0.5385,"hubs":0.0107,"graph":0.0368}},{"id":"0001890","xy":[529.9,373.4],"fraud":0,"ring":-1,"amount":7600,"purpose":"working capital","age":20,"day":235,"sme":1,"s":{"own":0.0059,"hubs":0.0014,"graph":0.0014}},{"id":"0001891","xy":[437.7,210.7],"fraud":0,"ring":-1,"amount":1744,"purpose":"property","age":30,"day":239,"sme":1,"s":{"own":0.0221,"hubs":0.0054,"graph":0.0011}},{"id":"0001892","xy":[485.2,234.0],"fraud":0,"ring":-1,"amount":741,"purpose":"working capital","age":29,"day":235,"sme":1,"s":{"own":0.0439,"hubs":0.0034,"graph":0.0004}},{"id":"0001893","xy":[386.8,232.7],"fraud":0,"ring":-1,"amount":682,"purpose":"working capital","age":29,"day":235,"sme":1,"s":{"own":0.0557,"hubs":0.0032,"graph":0.0005}},{"id":"0001894","xy":[466.5,359.8],"fraud":0,"ring":-1,"amount":602,"purpose":"inventory","age":39,"day":235,"sme":1,"s":{"own":0.0175,"hubs":0.002,"graph":0.0004}},{"id":"0002121","xy":[743.7,827.7],"fraud":0,"ring":-1,"amount":342,"purpose":"refinance","age":31,"day":231,"sme":1,"s":{"own":0.0183,"hubs":0.9097,"graph":0.0024}},{"id":"0002122","xy":[812.8,829.1],"fraud":0,"ring":-1,"amount":1314,"purpose":"property","age":9,"day":227,"sme":1,"s":{"own":0.0173,"hubs":0.8222,"graph":0.0209}},{"id":"0002182","xy":[416.1,581.2],"fraud":0,"ring":-1,"amount":1227,"purpose":"working capital","age":30,"day":137,"sme":1,"s":{"own":0.0066,"hubs":0.0057,"graph":0.0031}},{"id":"0002183","xy":[488.4,626.0],"fraud":0,"ring":-1,"amount":415,"purpose":"equipment","age":50,"day":217,"sme":1,"s":{"own":0.0037,"hubs":0.0189,"graph":0.0081}},{"id":"0002184","xy":[445.8,723.6],"fraud":0,"ring":-1,"amount":452,"purpose":"inventory","age":51,"day":154,"sme":1,"s":{"own":0.0136,"hubs":0.005,"graph":0.0047}},{"id":"0002185","xy":[559.1,555.9],"fraud":0,"ring":-1,"amount":431,"purpose":"working capital","age":29,"day":235,"sme":1,"s":{"own":0.0893,"hubs":0.0216,"graph":0.0069}},{"id":"0002186","xy":[616.2,720.3],"fraud":0,"ring":-1,"amount":324,"purpose":"equipment","age":31,"day":143,"sme":1,"s":{"own":0.0076,"hubs":0.0026,"graph":0.0029}},{"id":"0002303","xy":[601.5,336.5],"fraud":0,"ring":-1,"amount":1893,"purpose":"refinance","age":41,"day":153,"sme":1,"s":{"own":0.0638,"hubs":0.0183,"graph":0.0049}},{"id":"0002304","xy":[602.1,388.5],"fraud":0,"ring":-1,"amount":545,"purpose":"refinance","age":20,"day":78,"sme":0,"s":{"own":0.4046,"hubs":0.1106,"graph":0.0266}},{"id":"0002305","xy":[745.4,270.0],"fraud":0,"ring":-1,"amount":1115,"purpose":"expansion","age":40,"day":113,"sme":0,"s":{"own":0.275,"hubs":0.04,"graph":0.0111}},{"id":"0002306","xy":[696.0,308.9],"fraud":0,"ring":-1,"amount":347,"purpose":"equipment","age":21,"day":103,"sme":0,"s":{"own":0.3249,"hubs":0.022,"graph":0.0111}},{"id":"0002307","xy":[910.5,290.3],"fraud":0,"ring":-1,"amount":406,"purpose":"working capital","age":50,"day":173,"sme":1,"s":{"own":0.0736,"hubs":0.0096,"graph":0.0019}},{"id":"0002308","xy":[922.2,348.7],"fraud":0,"ring":-1,"amount":4310,"purpose":"equipment","age":29,"day":147,"sme":1,"s":{"own":0.3593,"hubs":0.0143,"graph":0.0019}},{"id":"0002309","xy":[870.7,256.8],"fraud":0,"ring":-1,"amount":426,"purpose":"equipment","age":49,"day":129,"sme":0,"s":{"own":0.3716,"hubs":0.1859,"graph":0.0141}},{"id":"0002310","xy":[652.0,515.7],"fraud":0,"ring":-1,"amount":775,"purpose":"equipment","age":22,"day":144,"sme":0,"s":{"own":0.5862,"hubs":0.057,"graph":0.1065}},{"id":"0002311","xy":[711.7,704.5],"fraud":0,"ring":-1,"amount":1995,"purpose":"property","age":20,"day":53,"sme":1,"s":{"own":0.0185,"hubs":0.0238,"graph":0.0004}},{"id":"0002312","xy":[765.6,619.2],"fraud":0,"ring":-1,"amount":1515,"purpose":"inventory","age":21,"day":47,"sme":1,"s":{"own":0.0079,"hubs":0.012,"graph":0.0002}},{"id":"0002313","xy":[954.5,463.7],"fraud":0,"ring":-1,"amount":3614,"purpose":"equipment","age":30,"day":84,"sme":1,"s":{"own":0.0192,"hubs":0.0138,"graph":0.0009}},{"id":"0002314","xy":[950.7,405.3],"fraud":0,"ring":-1,"amount":701,"purpose":"equipment","age":10,"day":157,"sme":1,"s":{"own":0.0477,"hubs":0.0056,"graph":0.0017}},{"id":"0002315","xy":[831.4,559.4],"fraud":0,"ring":-1,"amount":588,"purpose":"inventory","age":41,"day":182,"sme":1,"s":{"own":0.1166,"hubs":0.0445,"graph":0.0008}},{"id":"0002316","xy":[899.2,557.1],"fraud":0,"ring":-1,"amount":5242,"purpose":"inventory","age":49,"day":51,"sme":1,"s":{"own":0.126,"hubs":0.005,"graph":0.0013}},{"id":"0002317","xy":[935.0,515.0],"fraud":0,"ring":-1,"amount":3430,"purpose":"working capital","age":18,"day":215,"sme":1,"s":{"own":0.0264,"hubs":0.0132,"graph":0.0096}},{"id":"0002318","xy":[778.9,515.4],"fraud":0,"ring":-1,"amount":835,"purpose":"refinance","age":10,"day":88,"sme":0,"s":{"own":0.3748,"hubs":0.124,"graph":0.0052}},{"id":"0002319","xy":[665.9,451.2],"fraud":0,"ring":-1,"amount":501,"purpose":"inventory","age":40,"day":168,"sme":1,"s":{"own":0.0395,"hubs":0.0607,"graph":0.0013}},{"id":"0002320","xy":[705.1,414.2],"fraud":0,"ring":-1,"amount":935,"purpose":"working capital","age":20,"day":55,"sme":0,"s":{"own":0.4471,"hubs":0.1291,"graph":0.0037}},{"id":"0002321","xy":[789.7,181.9],"fraud":0,"ring":-1,"amount":2235,"purpose":"working capital","age":41,"day":76,"sme":1,"s":{"own":0.0097,"hubs":0.009,"graph":0.0008}},{"id":"0002322","xy":[835.3,197.5],"fraud":0,"ring":-1,"amount":1232,"purpose":"equipment","age":31,"day":143,"sme":0,"s":{"own":0.09,"hubs":0.2235,"graph":0.038}},{"id":"0002452","xy":[144.7,268.5],"fraud":0,"ring":-1,"amount":718,"purpose":"working capital","age":20,"day":113,"sme":1,"s":{"own":0.0798,"hubs":0.0155,"graph":0.011}},{"id":"0002453","xy":[82.0,348.1],"fraud":0,"ring":-1,"amount":382,"purpose":"working capital","age":40,"day":40,"sme":1,"s":{"own":0.0115,"hubs":0.0028,"graph":0.0007}},{"id":"0002551","xy":[281.1,640.0],"fraud":0,"ring":-1,"amount":476,"purpose":"expansion","age":30,"day":253,"sme":1,"s":{"own":0.0842,"hubs":0.1694,"graph":0.0105}},{"id":"0002552","xy":[235.6,381.2],"fraud":0,"ring":-1,"amount":627,"purpose":"property","age":8,"day":261,"sme":0,"s":{"own":0.2794,"hubs":0.2511,"graph":0.0682}},{"id":"0002553","xy":[270.7,574.5],"fraud":0,"ring":-1,"amount":801,"purpose":"property","age":29,"day":246,"sme":1,"s":{"own":0.2763,"hubs":0.0055,"graph":0.0005}},{"id":"0002554","xy":[449.7,431.7],"fraud":0,"ring":-1,"amount":667,"purpose":"working capital","age":30,"day":237,"sme":0,"s":{"own":0.2854,"hubs":0.9031,"graph":0.3253}},{"id":"0002555","xy":[223.4,567.4],"fraud":0,"ring":-1,"amount":657,"purpose":"refinance","age":40,"day":205,"sme":0,"s":{"own":0.351,"hubs":0.1187,"graph":0.0542}},{"id":"0002556","xy":[316.8,383.5],"fraud":0,"ring":-1,"amount":834,"purpose":"equipment","age":30,"day":191,"sme":1,"s":{"own":0.0212,"hubs":0.0504,"graph":0.0009}},{"id":"0002557","xy":[385.1,427.9],"fraud":0,"ring":-1,"amount":746,"purpose":"working capital","age":41,"day":203,"sme":1,"s":{"own":0.0325,"hubs":0.002,"graph":0.0013}},{"id":"0002558","xy":[372.7,370.8],"fraud":0,"ring":-1,"amount":3165,"purpose":"property","age":30,"day":218,"sme":1,"s":{"own":0.0056,"hubs":0.0442,"graph":0.0045}},{"id":"0002559","xy":[388.7,480.7],"fraud":0,"ring":-1,"amount":695,"purpose":"property","age":29,"day":255,"sme":0,"s":{"own":0.2299,"hubs":0.4538,"graph":0.093}},{"id":"0002560","xy":[193.3,464.6],"fraud":0,"ring":-1,"amount":688,"purpose":"expansion","age":30,"day":211,"sme":1,"s":{"own":0.0091,"hubs":0.023,"graph":0.0005}},{"id":"0002561","xy":[276.5,357.8],"fraud":0,"ring":-1,"amount":5136,"purpose":"property","age":21,"day":256,"sme":1,"s":{"own":0.0546,"hubs":0.0081,"graph":0.0013}},{"id":"0002562","xy":[206.2,520.9],"fraud":0,"ring":-1,"amount":298,"purpose":"property","age":31,"day":199,"sme":0,"s":{"own":0.1587,"hubs":0.1677,"graph":0.0651}},{"id":"0002563","xy":[322.8,564.9],"fraud":0,"ring":-1,"amount":692,"purpose":"inventory","age":39,"day":233,"sme":0,"s":{"own":0.2412,"hubs":0.1801,"graph":0.0131}},{"id":"0002564","xy":[204.4,416.2],"fraud":0,"ring":-1,"amount":5725,"purpose":"equipment","age":42,"day":229,"sme":1,"s":{"own":0.0378,"hubs":0.0036,"graph":0.001}},{"id":"0002724","xy":[102.7,729.7],"fraud":0,"ring":-1,"amount":4754,"purpose":"refinance","age":19,"day":139,"sme":1,"s":{"own":0.0463,"hubs":0.0037,"graph":0.005}},{"id":"0002725","xy":[323.5,719.6],"fraud":0,"ring":-1,"amount":457,"purpose":"equipment","age":29,"day":127,"sme":0,"s":{"own":0.2978,"hubs":0.1457,"graph":0.0595}},{"id":"0002726","xy":[97.2,671.4],"fraud":0,"ring":-1,"amount":568,"purpose":"working capital","age":30,"day":94,"sme":0,"s":{"own":0.4394,"hubs":0.1884,"graph":0.0924}}],"ents":[{"id":"addr_0000322","kind":"address","xy":[659.5,103.7],"n":3},{"id":"addr_0000323","kind":"address","xy":[714.1,140.1],"n":3},{"id":"addr_0000436","kind":"address","xy":[325.3,140.3],"n":2},{"id":"addr_0002822","kind":"address","xy":[770.7,868.4],"n":2},{"id":"addr_0002916","kind":"address","xy":[601.3,611.6],"n":5},{"id":"addr_0002917","kind":"address","xy":[481.2,527.9],"n":5},{"id":"bank_0000163","kind":"bank","xy":[224.9,300.6],"n":3},{"id":"bank_0000354","kind":"bank","xy":[253.7,149.9],"n":2},{"id":"bank_0000475","kind":"bank","xy":[461.4,96.8],"n":2},{"id":"bank_0001024","kind":"collector","xy":[676.6,637.8],"n":2},{"id":"bank_0001028","kind":"bank","xy":[600.7,467.0],"n":1},{"id":"bank_0001031","kind":"bank","xy":[565.7,813.5],"n":1},{"id":"bank_0001258","kind":"bank","xy":[171.9,628.4],"n":2},{"id":"bank_0001298","kind":"bank","xy":[537.5,440.4],"n":2},{"id":"bank_0001437","kind":"bank","xy":[460.8,826.9],"n":2},{"id":"bank_0001587","kind":"bank","xy":[445.7,293.2],"n":7},{"id":"bank_0001903","kind":"collector","xy":[796.3,408.1],"n":20},{"id":"bank_0001904","kind":"bank","xy":[658.3,369.3],"n":2},{"id":"bank_0001905","kind":"bank","xy":[750.2,328.5],"n":2},{"id":"bank_0001906","kind":"bank","xy":[861.5,327.6],"n":3},{"id":"bank_0001907","kind":"bank","xy":[731.1,571.4],"n":3},{"id":"bank_0001908","kind":"bank","xy":[901.0,429.5],"n":2},{"id":"bank_0001909","kind":"bank","xy":[863.6,508.2],"n":3},{"id":"bank_0001910","kind":"bank","xy":[727.8,473.7],"n":3},{"id":"bank_0001911","kind":"bank","xy":[804.9,251.4],"n":2},{"id":"biz_0000009","kind":"business","xy":[623.4,261.8],"n":3},{"id":"biz_0000072","kind":"employer","xy":[621.3,919.9],"n":4},{"id":"biz_0000925","kind":"business","xy":[394.9,658.5],"n":5},{"id":"dev_0000186","kind":"device","xy":[98.1,487.0],"n":7},{"id":"dev_0000317","kind":"device","xy":[818.7,758.8],"n":4},{"id":"dev_0000603","kind":"device","xy":[688.2,787.2],"n":2},{"id":"dev_0000764","kind":"device","xy":[464.5,954.0],"n":2},{"id":"dev_0001258","kind":"device","xy":[286.4,815.8],"n":13},{"id":"dev_0002014","kind":"device","xy":[350.3,312.0],"n":2},{"id":"dev_0002173","kind":"device","xy":[295.7,475.9],"n":14},{"id":"doc_0002166","kind":"document","xy":[170.7,220.7],"n":2},{"id":"doc_0003509","kind":"document","xy":[636.0,819.7],"n":2},{"id":"email_0000271","kind":"email","xy":[526.6,157.0],"n":3},{"id":"email_0000313","kind":"email","xy":[937.6,625.0],"n":2},{"id":"email_0000420","kind":"email","xy":[391.0,124.1],"n":2},{"id":"email_0001844","kind":"email","xy":[538.2,667.4],"n":5},{"id":"email_0002091","kind":"email","xy":[110.9,309.8],"n":2},{"id":"email_0002307","kind":"email","xy":[152.3,703.7],"n":3},{"id":"emp_0000006","kind":"employee","xy":[836.2,667.8],"n":3},{"id":"person_0000314","kind":"person","xy":[622.9,169.5],"n":3},{"id":"person_0002039","kind":"person","xy":[512.5,746.9],"n":5}],"edges":[[9,0,0],[10,0,0],[11,0,0],[9,1,0],[10,1,0],[11,1,0],[16,2,0],[17,2,0],[54,3,0],[55,3,0],[56,4,0],[57,4,0],[58,4,0],[59,4,0],[60,4,0],[56,5,0],[57,5,0],[58,5,0],[59,5,0],[60,5,0],[1,6,0],[7,6,0],[8,6,0],[17,7,0],[18,7,0],[20,8,0],[21,8,0],[49,10,0],[36,11,0],[3,12,0],[42,12,0],[68,13,0],[86,13,0],[23,14,0],[98,14,0],[8,15,0],[48,15,0],[49,15,0],[50,15,0],[51,15,0],[52,15,0],[53,15,0],[61,17,0],[62,17,0],[63,18,0],[64,18,0],[65,19,0],[66,19,0],[67,19,0],[68,20,0],[69,20,0],[70,20,0],[71,21,0],[72,21,0],[73,22,0],[74,22,0],[75,22,0],[76,23,0],[77,23,0],[78,23,0],[79,24,0],[80,24,0],[9,25,0],[10,25,0],[11,25,0],[22,26,0],[23,26,0],[24,26,0],[25,26,0],[56,27,0],[57,27,0],[58,27,0],[59,27,0],[60,27,0],[0,28,0],[1,28,0],[2,28,0],[3,28,0],[4,28,0],[5,28,0],[6,28,0],[12,29,0],[13,29,0],[14,29,0],[55,29,0],[24,30,0],[60,30,0],[30,31,0],[33,31,0],[36,32,0],[37,32,0],[38,32,0],[39,32,0],[40,32,0],[41,32,0],[42,32,0],[43,32,0],[44,32,0],[45,32,0],[46,32,0],[47,32,0],[83,32,0],[8,33,0],[90,33,0],[83,34,0],[84,34,0],[85,34,0],[86,34,0],[87,34,0],[88,34,0],[89,34,0],[90,34,0],[91,34,0],[92,34,0],[93,34,0],[94,34,0],[95,34,0],[96,34,0],[18,35,0],[81,35,0],[23,36,0],[69,36,0],[9,37,0],[10,37,0],[11,37,0],[12,38,0],[15,38,0],[19,39,0],[20,39,0],[56,40,0],[57,40,0],[58,40,0],[59,40,0],[60,40,0],[81,41,0],[82,41,0],[97,42,0],[98,42,0],[99,42,0],[12,43,0],[13,43,0],[14,43,0],[9,44,0],[10,44,0],[11,44,0],[56,45,0],[57,45,0],[58,45,0],[59,45,0],[60,45,0],[17,16,1],[23,16,1],[20,16,1],[22,16,1],[21,16,1],[19,16,1],[24,16,1],[18,16,1],[10,9,1],[11,9,1]],"rings":[{"typology":"loan_stacking","title":"Loan stacking","story":"One borrower files several loans close together, before any lender can report the others.","size":3},{"typology":"phantom_employer","title":"Phantom employer","story":"Applicants all claim the same employer, a company with no staff, no owner and no history.","size":4},{"typology":"identity_match","title":"Shared identity","story":"Several applicants are one identity: same email, same tax ID, same birthday.","size":3},{"typology":"device_farm","title":"Device farm","story":"Applications from many different people, all filed from the same device within days.","size":9},{"typology":"shell_company","title":"Shell companies","story":"Businesses with one employee and almost no revenue, all registered at the same address.","size":3},{"typology":"collusion","title":"Inside job","story":"One loan officer processed every application in the ring, from one shared device.","size":4}]}],"kinds":{"bank":"Bank account","device":"Device","document":"Document","person":"Applicant","business":"Business","employee":"Loan officer","email":"Email address","address":"Address","employer":"Employer","collector":"Receiving account"},"audit":{"n_apps":2820,"prevalence":0.2581560283687943,"best_baseline":"hubs","pr":{"own":0.466,"hubs":0.659,"own+hubs":0.652,"graph":0.738},"pr_std":{"own":0.011,"hubs":0.007,"own+hubs":0.004,"graph":0.007},"lift":0.078,"lift_std":0.01,"seeds":3}}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+(() => {
+  const D = JSON.parse(document.getElementById("data").textContent);
+  const PLAY_SECONDS = 90;
+  const SVGNS = "http://www.w3.org/2000/svg";
+  const CODES = { bank: "BK", device: "DV", document: "DC", person: "AP", business: "BZ",
+                  employee: "LO", email: "EM", address: "AD", employer: "EP", collector: "RX" };
+  const PARTIES = [
+    { key: "you", name: "You", color: "var(--stamp)" },
+    { key: "own", name: "Row-by-row model", color: "var(--pencil)",
+      blurb: "reads each application on its own" },
+    { key: "hubs", name: "Connection counter", color: "var(--pen-blue)",
+      blurb: "counts who shares what, and how close in time" },
+    { key: "graph", name: "Graph model", color: "var(--pen-violet)",
+      blurb: "reads three hops of the network" },
+  ];
+  const $ = id => document.getElementById(id);
+  const pad = (n, w = 2) => String(n).padStart(w, "0");
+
+  const S = { board: 0, phase: "intro", flags: new Set(), left: PLAY_SECONDS, view: "truth", timer: null, ring: -1 };
+  let B, appEls = [], hubEls = [], edgeEls = [], k = 0, picks = {};
+
+  function el(tag, attrs, parent) {
+    const e = document.createElementNS(SVGNS, tag);
+    for (const a in attrs) e.setAttribute(a, attrs[a]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  // ---------- chart ----------
+  function buildBoard() {
+    B = D.boards[S.board];
+    const gE = $("gE"), gH = $("gH"), gA = $("gA");
+    gE.replaceChildren(); gH.replaceChildren(); gA.replaceChildren();
+    appEls = []; hubEls = []; edgeEls = [];
+    B.edges.forEach(([u, v, t]) => {
+      const a = t === 0 ? B.apps[u].xy : B.ents[u].xy, b = B.ents[v].xy;
+      const line = el("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], class: "e" + (t ? " money" : "") }, gE);
+      edgeEls.push({ line, u, v, t });
+    });
+    B.ents.forEach((h, i) => {
+      const g = el("g", { class: "hub", transform: `translate(${h.xy[0]},${h.xy[1]})`, tabindex: 0,
+                          role: "button", "aria-label": `${D.kinds[h.kind]} shared by ${h.n}` }, gH);
+      el("rect", { x: -15, y: -11, width: 30, height: 22, rx: 1.5 }, g);
+      el("text", {}, g).textContent = CODES[h.kind] || "··";
+      g.addEventListener("click", ev => { ev.stopPropagation(); inspectHub(i); });
+      g.addEventListener("keydown", ev => { if (ev.key === "Enter") inspectHub(i); });
+      hubEls.push(g);
+    });
+    B.apps.forEach((a, i) => {
+      const g = el("g", { class: "app" + (a.fraud ? " fraud" : ""), transform: `translate(${a.xy[0]},${a.xy[1]})`,
+                          tabindex: 0, role: "button", "aria-pressed": "false",
+                          "aria-label": `Application ${a.id}` }, gA);
+      el("circle", { class: "hit", r: 20 }, g);
+      el("circle", { class: "hl", r: 20 }, g);
+      el("circle", { class: "body", r: 12.5 }, g);
+      el("circle", { class: "dot", r: 6.2 }, g);
+      el("circle", { class: "mark", r: 18.5, transform: `rotate(${(i * 47) % 360})`, "stroke-dasharray": "96 12" }, g);
+      g.addEventListener("click", ev => { ev.stopPropagation(); tapApp(i); });
+      g.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); tapApp(i); } });
+      appEls.push(g);
+    });
+    const n = D.boards.length;
+    $("caseNo").textContent = `${pad(S.board + 1)}/${pad(n)}`;
+    $("memoRe").textContent = `Case ${pad(S.board + 1)}, suspected organised fraud`;
+    $("runApps").textContent = `${B.apps.length} applications`;
+    $("runLinks").textContent = `${B.ents.length} shared items`;
+    $("figTitle").textContent = `Fig. 1 · Link chart, case ${pad(S.board + 1)}`;
+    $("footCase").textContent = `Case ${pad(S.board + 1)} of ${pad(n)} · page 1 of 1`;
+    buildSymbols();
+    clearInspect();
+    syncFlags();
+  }
+
+  function buildSymbols() {
+    const used = [...new Set(B.ents.map(h => h.kind))];
+    const items = [
+      [`<svg width="30" height="26" viewBox="-15 -13 30 26"><circle r="9" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.8"/></svg>`, "One loan application"],
+      [`<svg width="30" height="26" viewBox="-15 -13 30 26"><circle r="9" fill="var(--paper)" stroke="var(--stamp)" stroke-width="1.8"/><circle r="4.6" fill="var(--stamp)"/><circle r="13" fill="none" stroke="var(--stamp)" stroke-width="2.6"/></svg>`, "Marked by you"],
+      [`<svg width="34" height="26" viewBox="-17 -13 34 26"><line x1="-16" y1="0" x2="16" y2="0" stroke="var(--ink)" stroke-width="1.6" stroke-dasharray="6 4"/></svg>`, "Money forwarded between accounts"],
+      ...used.map(kd => [`<svg width="30" height="26" viewBox="-15 -13 30 26"><rect x="-13" y="-9" width="26" height="18" rx="1.5" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.4"/><text text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Mono, monospace" font-weight="600" font-size="9.5" fill="var(--ink)">${CODES[kd]}</text></svg>`,
+                         `${D.kinds[kd]} shared by 2 or more`]),
+    ];
+    $("symbols").innerHTML = items.map(([svg, t]) => `<li>${svg}<span>${t}</span></li>`).join("");
+  }
+
+  function sharesOf(i) {
+    const out = [];
+    B.edges.forEach(([u, v, t]) => { if (t === 0 && u === i) out.push(v); });
+    return out;
+  }
+  const money = n => "$" + n.toLocaleString("en-US");
+  function setInspect(rows) {
+    $("inspect").innerHTML = rows.map(([dt, dd, cls]) => `<dt>${dt}</dt><dd${cls ? ` class="${cls}"` : ""}>${dd}</dd>`).join("");
+  }
+  function clearInspect() {
+    setInspect([["Item", "tap anything on the chart", "blank"], ["Amount", ""], ["Purpose", ""], ["Applicant", ""], ["Filed", ""], ["Shares", ""]]);
+  }
+  function inspectApp(i) {
+    const a = B.apps[i];
+    const sh = sharesOf(i).map(v => `${CODES[B.ents[v].kind]} ${D.kinds[B.ents[v].kind].toLowerCase()} (+${B.ents[v].n - 1})`);
+    setInspect([["Item", `Application ${a.id}`], ["Amount", money(a.amount)],
+                ["Purpose", `${a.purpose}, ${a.sme ? "business" : "personal"}`],
+                ["Applicant", `aged ${a.age}`], ["Filed", `day ${a.day} of 365`],
+                ["Shares", sh.length ? sh.join("<br>") : "nothing in this book"]]);
+  }
+  function inspectHub(i) {
+    const h = B.ents[i];
+    const what = h.kind === "collector"
+      ? "receives money forwarded from other accounts; no application pays into it directly"
+      : `shared by ${h.n} applications`;
+    setInspect([["Item", `${CODES[h.kind]} · ${D.kinds[h.kind]}`], ["Detail", what]]);
+  }
+
+  function tapApp(i) {
+    inspectApp(i);
+    if (S.phase !== "play") return;
+    S.flags.has(i) ? S.flags.delete(i) : S.flags.add(i);
+    syncFlags();
+    snapshot();
+  }
+  function syncFlags() {
+    appEls.forEach((g, i) => {
+      const on = S.flags.has(i);
+      g.classList.toggle("on", on);
+      g.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    $("count").textContent = pad(S.flags.size, 3);
+  }
+
+  // ---------- zoom ----------
+  const svg = d3.select("#board"), vp = d3.select("#vp");
+  const zoom = d3.zoom().scaleExtent([0.8, 6]).clickDistance(6).on("zoom", ev => vp.attr("transform", ev.transform));
+  svg.call(zoom).on("dblclick.zoom", null);
+  $("zin").onclick = () => svg.transition().duration(200).call(zoom.scaleBy, 1.5);
+  $("zout").onclick = () => svg.transition().duration(200).call(zoom.scaleBy, 1 / 1.5);
+  $("zfit").onclick = () => svg.transition().duration(250).call(zoom.transform, d3.zoomIdentity);
+
+  // ---------- clock ----------
+  const fmt = s => `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+  function start() {
+    S.phase = "play"; S.flags.clear(); S.left = PLAY_SECONDS; S.ring = -1;
+    $("memo").classList.add("compact"); $("startBtn").hidden = true; $("doneBtn").hidden = false;
+    $("hint").textContent = "Tap a circle to mark it. Close the file when you're done.";
+    $("resultPanel").hidden = true; $("ringPanel").hidden = true; $("playPanel").hidden = false;
+    $("stage").classList.remove("reveal", "dim");
+    syncFlags(); tick(); clearInterval(S.timer);
+    const t0 = Date.now();
+    S.timer = setInterval(() => {
+      S.left = Math.max(0, PLAY_SECONDS - Math.floor((Date.now() - t0) / 1000));
+      tick();
+      if (S.left === 0) finish();
+    }, 250);
+    snapshot();
+  }
+  function tick() {
+    $("clock").textContent = fmt(S.left);
+    $("clock").classList.toggle("low", S.phase === "play" && S.left <= 10);
+  }
+
+  // ---------- scoring ----------
+  function topK(key, n) {
+    return new Set(B.apps.map((a, i) => [a.s[key], i]).sort((p, q) => q[0] - p[0]).slice(0, n).map(p => p[1]));
+  }
+  function tally(set) {
+    let caught = 0;
+    set.forEach(i => { caught += B.apps[i].fraud; });
+    const rings = B.rings.map((r, ri) => {
+      const mem = B.apps.map((a, i) => [a, i]).filter(([a]) => a.ring === ri);
+      const hit = mem.filter(([, i]) => set.has(i)).length;
+      return hit * 2 >= mem.length;
+    });
+    return { caught, alarms: set.size - caught, rings };
+  }
+  const penMark = c => `<svg width="18" height="18" viewBox="-9 -9 18 18" aria-hidden="true"><circle r="6.6" fill="none" stroke="${c}" stroke-width="2.4"/><circle r="2.8" fill="${c}"/></svg>`;
+
+  function finish() {
+    clearInterval(S.timer);
+    S.phase = "reveal"; S.left = 0; tick();
+    $("doneBtn").hidden = true; $("startBtn").hidden = true;
+    $("hint").textContent = "File closed. The summary is beside the chart.";
+    $("playPanel").hidden = true; $("resultPanel").hidden = false; $("ringPanel").hidden = false;
+    const nFraud = B.apps.filter(a => a.fraud).length;
+    const played = S.flags.size > 0;
+    k = S.flags.size || nFraud;
+    picks = { you: new Set(S.flags), own: topK("own", k), hubs: topK("hubs", k), graph: topK("graph", k) };
+    const T = Object.fromEntries(Object.entries(picks).map(([p, s]) => [p, tally(s)]));
+    const nR = B.rings.length;
+    const ringsOf = p => T[p].rings.filter(Boolean).length;
+    const shown = PARTIES.filter(p => p.key !== "you" || played);
+
+    const lead = played ? ringsOf("you") : ringsOf("graph");
+    $("bigstamp").innerHTML = `${lead} of ${nR}<small>${played ? "rings found by you" : "rings, graph model"}</small>`;
+    $("headline").textContent = played
+      ? `The connection counter found ${ringsOf("hubs")}. The graph model found ${ringsOf("graph")}.`
+      : `You didn't mark anything. The connection counter found ${ringsOf("hubs")}.`;
+    $("budgetNote").textContent = played
+      ? `You marked ${k}. Every model got the same ${k} marks, placed on its ${k} highest-scoring applications. A ring counts as found when at least half its members are marked.`
+      : `Each model got ${k} marks, one per fraudulent application. A ring counts as found when at least half its members are marked.`;
+
+    $("score").innerHTML = shown.map(p => {
+      const t = T[p.key];
+      return `<tr class="party" tabindex="0" data-key="${p.key}" style="--c:${p.color}" title="${p.blurb || "your marks"}">
+        <td><span class="who">${penMark(p.color)}<span>${p.name}</span></span></td>
+        <td class="n">${ringsOf(p.key)}/${nR}</td><td class="n">${t.caught}/${nFraud}</td><td class="n">${t.alarms}</td></tr>`;
+    }).join("");
+    document.querySelectorAll("#score tr.party").forEach(tr => {
+      tr.onclick = () => setView(tr.dataset.key);
+      tr.onkeydown = ev => { if (ev.key === "Enter") setView(tr.dataset.key); };
+    });
+
+    $("views").innerHTML = [{ key: "truth", name: "Truth only" }, ...shown]
+      .map(v => `<button class="keybtn" data-key="${v.key}">${v.name}</button>`).join("");
+    document.querySelectorAll("#views button").forEach(b => { b.onclick = () => setView(b.dataset.key); });
+
+    $("rings").innerHTML = B.rings.map((r, ri) => {
+      const boxes = shown.map(p => `<span style="--c:${p.color}"><b>[${T[p.key].rings[ri] ? "x" : " "}]</b> ${p.name}</span>`).join("");
+      return `<li tabindex="0" data-ri="${ri}"><div class="rt"><span>${r.title}</span><span class="n">${r.size} applications</span></div><p>${r.story}</p><div class="boxes">${boxes}</div></li>`;
+    }).join("");
+    document.querySelectorAll("#rings li").forEach(li => {
+      const ri = +li.dataset.ri;
+      li.onclick = () => focusRing(ri);
+      li.onkeydown = ev => { if (ev.key === "Enter") focusRing(ri); };
+    });
+
+    const you = played ? `I found ${ringsOf("you")} of ${nR} rings` : `I didn't mark anyone`;
+    $("shareText").textContent = `Find the Ring, case ${pad(S.board + 1)}: ${you}. The connection counter found ${ringsOf("hubs")}. The graph model found ${ringsOf("graph")}.`;
+    $("stage").classList.add("reveal");
+    setView(played ? "you" : "graph");
+    snapshot();
+  }
+
+  function setView(key) {
+    S.view = key;
+    const p = PARTIES.find(q => q.key === key);
+    $("root").style.setProperty("--pick", p ? p.color : "var(--stamp)");
+    const set = key === "truth" ? new Set() : picks[key];
+    appEls.forEach((g, i) => g.classList.toggle("pick", set.has(i)));
+    document.querySelectorAll("#views button").forEach(b => b.setAttribute("aria-pressed", b.dataset.key === key));
+    document.querySelectorAll("#score tr.party").forEach(r => r.setAttribute("aria-pressed", r.dataset.key === key));
+  }
+
+  function focusRing(ri) {
+    const stage = $("stage");
+    const lis = [...document.querySelectorAll("#rings li")];
+    if (S.ring === ri) {
+      S.ring = -1; stage.classList.remove("dim");
+      lis.forEach(l => l.classList.remove("sel"));
+      return;
+    }
+    S.ring = ri;
+    stage.classList.add("dim");
+    lis.forEach((l, j) => l.classList.toggle("sel", j === ri));
+    const mem = new Set(B.apps.map((a, i) => a.ring === ri ? i : -1).filter(i => i >= 0));
+    const hubHits = new Map();
+    B.edges.forEach(([u, v, t]) => { if (t === 0 && mem.has(u)) hubHits.set(v, (hubHits.get(v) || 0) + 1); });
+    const litHubs = new Set([...hubHits].filter(([, c]) => c >= 2).map(([v]) => v));
+    B.edges.forEach(([u, v, t]) => { if (t === 1 && litHubs.has(u)) litHubs.add(v); });
+    appEls.forEach((g, i) => g.classList.toggle("lit", mem.has(i)));
+    hubEls.forEach((g, i) => g.classList.toggle("lit", litHubs.has(i)));
+    edgeEls.forEach(e => e.line.classList.toggle("lit",
+      (e.t === 0 && mem.has(e.u) && litHubs.has(e.v)) || (e.t === 1 && litHubs.has(e.u) && litHubs.has(e.v))));
+    $("stage").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });
+  }
+
+  // ---------- appendix ----------
+  function book() {
+    const A = D.audit, pr = A.pr;
+    const rows = [["own", "Row-by-row model", "var(--pencil)"], [A.best_baseline, "Connection counter", "var(--pen-blue)"],
+                  ["graph", "Graph model", "var(--pen-violet)"]];
+    $("bookLabel").textContent = `All ${A.n_apps.toLocaleString("en-US")} applications in the generated book`;
+    $("bookIntro").textContent = `${(100 * A.prevalence).toFixed(1)}% are labelled fraud. Each model ranked every application; PR-AUC scores that ranking from 0 to 1. Guessing scores about ${A.prevalence.toFixed(2)}, shown as the dashed line.`;
+    const x = v => (100 * v).toFixed(1) + "%";
+    $("book").innerHTML = rows.map(([m, n, c]) => `
+      <div class="r" style="--c:${c}"><span>${n}</span>
+        <span class="track"><b style="width:${x(pr[m])}"></b><s style="left:${x(A.prevalence)}"></s></span>
+        <span class="v">${pr[m].toFixed(3)}</span></div>`).join("") +
+      `<div class="axis"><span></span><div><span>0</span><span>0.5</span><span>1.0</span></div><span></span></div>`;
+    $("method").textContent = `The graph model beats the best model that never looks past an application's direct connections by ${A.lift >= 0 ? "+" : ""}${A.lift.toFixed(3)} ± ${A.lift_std.toFixed(3)} PR-AUC over ${A.seeds} seeds. Every score in the game is out-of-fold: the model that scored an application never trained on its ring or cluster. Rings in each case were drawn at random, not picked to suit any model. The graph model is graphlift's multi-hop propagation with gradient-boosted trees, not a trained GNN.`;
+  }
+
+  // ---------- controls ----------
+  function toIntro() {
+    clearInterval(S.timer);
+    S.flags.clear(); S.phase = "intro"; S.left = PLAY_SECONDS; S.ring = -1; tick();
+    $("memo").classList.remove("compact"); $("startBtn").hidden = false; $("doneBtn").hidden = true;
+    $("hint").textContent = "Tap a circle to mark it. Tap a square to see what's shared. Pinch or scroll to zoom.";
+    $("resultPanel").hidden = true; $("ringPanel").hidden = true; $("playPanel").hidden = false;
+    $("stage").classList.remove("reveal", "dim");
+    svg.call(zoom.transform, d3.zoomIdentity);
+  }
+  $("startBtn").onclick = start;
+  $("doneBtn").onclick = finish;
+  $("againBtn").onclick = () => { buildBoard(); start(); };
+  $("nextBtn").onclick = () => {
+    S.board = (S.board + 1) % D.boards.length;
+    buildBoard(); toIntro();
+    $("root").scrollIntoView({ block: "start" });
+    snapshot();
+  };
+  $("copyBtn").onclick = () => {
+    const txt = $("shareText").textContent;
+    const done = m => { $("toast").textContent = m; setTimeout(() => { $("toast").textContent = ""; }, 2200); };
+    const fallback = () => {
+      const r = document.createRange(); r.selectNodeContents($("shareText"));
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      done("Selected. Copy it with your keyboard.");
+    };
+    try { navigator.clipboard.writeText(txt).then(() => done("Copied"), fallback); } catch (e) { fallback(); }
+  };
+
+  // ---------- live-update hook ----------
+  function snapshot() {
+    window.claude?.hot?.snapshot?.(() => ({ board: S.board, phase: S.phase, flags: [...S.flags] }));
+  }
+  function boot(saved) {
+    if (saved && Number.isInteger(saved.board) && saved.board < D.boards.length) S.board = saved.board;
+    buildBoard(); book(); tick();
+    if (saved && saved.phase === "reveal") {
+      (saved.flags || []).forEach(i => S.flags.add(i));
+      $("memo").classList.add("compact"); $("startBtn").hidden = true;
+      syncFlags(); finish();
+    }
+  }
+  window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});
+})();
+</script>
+
+</body>
+</html>
