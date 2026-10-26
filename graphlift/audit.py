@@ -3,7 +3,8 @@
 Four models, each a gradient-boosted tree, each seeing more than the last:
 
     own      the target's own attributes only
-    hubs     how shared its entities are, and how bursty (no own attributes)
+    hubs     how shared its entities are (and how bursty), or for graphs whose
+             targets link directly, how many neighbours it has per relation
     own+hubs both: the strongest model that never passes a message
     graph    own+hubs plus multi-hop neighbourhood summaries
 
@@ -17,12 +18,13 @@ import time
 from dataclasses import dataclass, field
 
 import numpy as np
+import scipy.sparse as sp
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.metrics import average_precision_score, roc_auc_score
 
 from .data import GraphData, encode
 from .leakage import attribute_scan, exposure, resolve_groups
-from .structure import adjacency, hub_features, hub_paths, propagate
+from .structure import adjacency, hub_features, hub_paths, propagate, typed_relations
 
 BASELINES = ("own", "hubs", "own+hubs")
 MODELS = BASELINES + ("graph",)
@@ -39,7 +41,7 @@ class AuditResult:
     verdict: str
     random_split: dict
     breakdown: dict = field(default_factory=dict)
-    oof: dict = field(default_factory=dict)       # model -> mean OOF score per target
+    oof: dict = field(default_factory=dict)       # model -> mean OOF score per target (NaN if unlabelled)
     feature_counts: dict = field(default_factory=dict)
     settings: dict = field(default_factory=dict)
     seconds: float = 0.0
@@ -47,10 +49,11 @@ class AuditResult:
 
 def _folds(groups: np.ndarray, k: int, seed: int) -> np.ndarray:
     """Assign whole groups to k folds at random; returns a fold id per target."""
-    uniq = np.unique(groups)
+    uniq, inv = np.unique(groups, return_inverse=True)
     perm = np.random.default_rng(seed).permutation(len(uniq))
-    fold_of = dict(zip(uniq[perm], np.arange(len(uniq)) % k))
-    return np.array([fold_of[g] for g in groups])
+    fold_of_group = np.empty(len(uniq), dtype=int)
+    fold_of_group[perm] = np.arange(len(uniq)) % k
+    return fold_of_group[inv]
 
 
 def _model(seed: int) -> HistGradientBoostingClassifier:
@@ -64,37 +67,56 @@ def _oof(x: np.ndarray, y: np.ndarray, fold: np.ndarray, seed: int) -> np.ndarra
     for f in np.unique(fold):
         te = fold == f
         tr = ~te
-        if len(np.unique(y[tr])) < 2:
+        if x.shape[1] == 0 or len(np.unique(y[tr])) < 2:
             p[te] = y[tr].mean()
             continue
         p[te] = _model(seed).fit(x[tr], y[tr]).predict_proba(x[te])[:, 1]
     return p
 
 
+def _full(mask_lab: np.ndarray, lab_idx: np.ndarray, n: int) -> np.ndarray:
+    out = np.zeros(n, bool)
+    out[lab_idx[mask_lab]] = True
+    return out
+
+
 def run(g: GraphData, seeds: int = 3, folds: int = 5, hops: int = 3, dim: int = 48,
         verbose: bool = True) -> AuditResult:
     t0 = time.time()
     say = print if verbose else (lambda *a, **k: None)
-    y = g.y
+    lab = g.labelled
+    lab_idx = np.flatnonzero(lab)
+    y_all = g.y
+    y = y_all[lab]
+    n_t = len(y_all)
     if len(np.unique(y)) < 2:
-        raise ValueError("The label has only one class.")
+        raise ValueError("The label has only one class among labelled targets.")
 
-    say(f"[graphlift] {g.name}: {len(y):,} targets, {y.sum():,} positive ({y.mean():.1%})")
+    extra = f" ({n_t - len(y):,} unlabelled kept as neighbours)" if len(y) < n_t else ""
+    say(f"[graphlift] {g.name}: {len(y):,} labelled targets, {y.sum():,} positive "
+        f"({y.mean():.1%}){extra}")
+    rels = typed_relations(g)
     a = adjacency(g)
     groups, ginfo = resolve_groups(g, a)
-    say(f"[graphlift] groups from {ginfo['source']}: {ginfo['n_groups']:,}")
+    groups = groups[lab]
+    say(f"[graphlift] groups from {ginfo['source']}: {len(np.unique(groups)):,}")
 
     say("[graphlift] building features")
     x_own, own_names = encode(g, g.target)
-    paths = hub_paths(g)
-    x_hub, hub_names = hub_features(g, paths)
-    prop, prop_names = propagate(g, hops=hops, dim=dim, a=a)
+    paths = hub_paths(g, rels=rels)
+    x_hub, hub_names = hub_features(g, paths, rels=rels)
+    prop, prop_names = propagate(g, hops=hops, dim=dim, a=a, rels=rels)
     xs = {
         "own": x_own,
         "hubs": x_hub,
         "own+hubs": np.hstack([x_own, x_hub]),
         "graph": np.hstack([x_own, x_hub, *prop]),
     }
+    xs = {m: x[lab] for m, x in xs.items()}
+    direct = None
+    tt = [r.m for r in rels if r.src == g.target and r.dst == g.target]
+    if tt:
+        direct = (sum(tt) > 0).astype(np.float32).tocsr()
 
     say("[graphlift] scanning attributes for label leaks")
     attrs = attribute_scan(g, a)
@@ -106,7 +128,7 @@ def run(g: GraphData, seeds: int = 3, folds: int = 5, hops: int = 3, dim: int = 
         fold = _folds(groups, folds, seed=s)
         for f in np.unique(fold):
             te = fold == f
-            expo.append(exposure(paths, y, ~te, te))
+            expo.append(exposure(paths, y_all, _full(~te, lab_idx, n_t), _full(te, lab_idx, n_t), direct))
         for m in MODELS:
             p = _oof(xs[m], y, fold, seed=s)
             oof_sum[m] += p
@@ -133,15 +155,20 @@ def run(g: GraphData, seeds: int = 3, folds: int = 5, hops: int = 3, dim: int = 
     fold_r = np.random.default_rng(0).integers(0, folds, len(y))
     for m in (best, "graph"):
         rnd[m] = float(average_precision_score(y, _oof(xs[m], y, fold_r, seed=0)))
-    expo_r = [exposure(paths, y, fold_r != f, fold_r == f) for f in range(folds)]
+    expo_r = [exposure(paths, y_all, _full(fold_r != f, lab_idx, n_t), _full(fold_r == f, lab_idx, n_t), direct)
+              for f in range(folds)]
     random_split = {"pr_auc": rnd,
                     "grouped_pr_auc": {m: metrics[m]["pr_auc_mean"] for m in rnd},
                     "test_touches_train_positive": float(np.mean(
                         [e["test_touches_train_positive"] for e in expo_r]))}
 
     split_exposure = {k: float(np.mean([e[k] for e in expo])) for k in expo[0]}
-    oof = {m: v / seeds for m, v in oof_sum.items()}
-    breakdown = _breakdown(g, y, oof)
+    oof = {}
+    for m, v in oof_sum.items():
+        full = np.full(n_t, np.nan)
+        full[lab] = v / seeds
+        oof[m] = full
+    breakdown = _breakdown(g, y, {m: v / seeds for m, v in oof_sum.items()}, lab)
 
     return AuditResult(
         dataset=g.summary(), groups=ginfo, split_exposure=split_exposure, attributes=attrs,
@@ -162,12 +189,12 @@ def _verdict(lift: dict) -> str:
     return "graph is decorative"
 
 
-def _breakdown(g: GraphData, y: np.ndarray, oof: dict) -> dict:
+def _breakdown(g: GraphData, y: np.ndarray, oof: dict, lab: np.ndarray) -> dict:
     """Recall per category when each model flags as many targets as there are
     positives. Only computed if the dataset declares a `breakdown` column."""
     if not g.breakdown or g.breakdown not in g.targets:
         return {}
-    cat = g.targets[g.breakdown].astype(str).to_numpy()
+    cat = g.targets[g.breakdown].astype(str).to_numpy()[lab]
     k = int(y.sum())
     out = {}
     for m, p in oof.items():

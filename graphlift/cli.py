@@ -19,7 +19,28 @@ def main(argv=None):
     a.add_argument("--hops", type=int, default=3)
     a.add_argument("--dim", type=int, default=48)
     a.add_argument("--out", default=None, help="folder for report.md and report.json")
+    rp = sub.add_parser("report", help="re-render report.md from a saved report.json")
+    rp.add_argument("json")
+    ix = sub.add_parser("index", help="one table across several saved report.json files")
+    ix.add_argument("jsons", nargs="+")
+    ix.add_argument("--out", default=None, help="write the table to this Markdown file")
     args = p.parse_args(argv)
+
+    if args.cmd == "index":
+        md = report.index_markdown([report.from_json(j) for j in args.jsons])
+        if args.out:
+            with open(args.out, "w") as f:
+                f.write(md)
+        print(md)
+        return
+
+    if args.cmd == "report":
+        r = report.from_json(args.json)
+        md = report.to_markdown(r)
+        with open(os.path.join(os.path.dirname(os.path.abspath(args.json)), "report.md"), "w") as f:
+            f.write(md)
+        print(md)
+        return
 
     g = load_dir(args.path)
     r = audit.run(g, seeds=args.seeds, folds=args.folds, hops=args.hops, dim=args.dim)

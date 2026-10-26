@@ -6,5 +6,5 @@
 from . import audit, report
 from .data import GraphData, load_dir
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = ["GraphData", "load_dir", "audit", "report", "__version__"]

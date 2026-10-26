@@ -34,6 +34,7 @@ class GraphData:
     time: str | None = None
     breakdown: str | None = None
     exclude: dict[str, list[str]] = field(default_factory=dict)
+    undirected: list[str] = field(default_factory=list)
     name: str = "graph"
 
     # Filled by `index()`.
@@ -55,8 +56,17 @@ class GraphData:
         return self.nodes[self.target]
 
     @property
+    def labelled(self) -> np.ndarray:
+        """Targets that carry a usable 0/1 label. Unlabelled targets stay in the
+        graph as neighbours but are never trained or scored on."""
+        v = pd.to_numeric(self.targets[self.label], errors="coerce").to_numpy()
+        return np.isin(v, (0, 1))
+
+    @property
     def y(self) -> np.ndarray:
-        return self.targets[self.label].to_numpy().astype(int)
+        """Labels for ALL targets; unlabelled ones are -1. Index with `labelled`."""
+        v = pd.to_numeric(self.targets[self.label], errors="coerce").to_numpy()
+        return np.where(np.isin(v, (0, 1)), v, -1).astype(int)
 
     def global_ids(self, ntype: str, ids: pd.Series) -> np.ndarray:
         lookup = pd.Series(np.arange(len(self.nodes[ntype])) + self.offset[ntype],
@@ -64,11 +74,12 @@ class GraphData:
         return lookup.reindex(ids.to_numpy()).to_numpy()
 
     def summary(self) -> dict:
-        y = self.y
+        y = self.y[self.labelled]
         return {
             "name": self.name,
             "target": self.target,
-            "n_targets": int(len(y)),
+            "n_targets": int(len(self.targets)),
+            "n_labelled": int(len(y)),
             "n_positive": int(y.sum()),
             "prevalence": float(y.mean()),
             "node_types": {t: int(len(d)) for t, d in self.nodes.items()},
@@ -89,6 +100,7 @@ def load_dir(path: str) -> GraphData:
     g = GraphData(nodes=nodes, edges=edges, target=meta["target"], label=meta["label"],
                   group=meta.get("group"), time=meta.get("time"),
                   breakdown=meta.get("breakdown"), exclude=meta.get("exclude", {}),
+                  undirected=meta.get("undirected", []),
                   name=meta.get("name", os.path.basename(path.rstrip("/"))))
     for t, df in g.nodes.items():
         if "id" not in df.columns:

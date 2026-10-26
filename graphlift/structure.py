@@ -42,19 +42,27 @@ class Rel:
 
 
 def typed_relations(g: GraphData) -> list[Rel]:
-    """Every relation in both directions, as binary type-to-type matrices."""
+    """Every relation as binary type-to-type matrices, in both directions.
+    A relation declared undirected between two nodes of one type becomes a
+    single symmetric matrix instead of two half matrices."""
     rels = []
     sizes = {t: len(df) for t, df in g.nodes.items()}
+    undirected = set(g.undirected or [])
     for (st, rel, dt), e in g.edges.groupby(["src_type", "relation", "dst_type"]):
         si = g.global_ids(st, e["src_id"]) - g.offset[st]
         di = g.global_ids(dt, e["dst_id"]) - g.offset[dt]
         ok = ~(pd.isna(si) | pd.isna(di))
-        si, di = si[ok].astype(int), di[ok].astype(int)
+        si, di = si[ok].astype(np.int64), di[ok].astype(np.int64)
         m = sp.csr_matrix((np.ones(len(si), dtype=np.float32), (si, di)),
                           shape=(sizes[st], sizes[dt]))
-        m.data[:] = 1.0                       # duplicates collapse to one edge
         m.sum_duplicates()
         m.data[:] = 1.0
+        if st == dt and rel in undirected:
+            m = ((m + m.T) > 0).astype(np.float32).tocsr()
+            m.setdiag(0)
+            m.eliminate_zeros()
+            rels.append(Rel(rel, st, dt, m))
+            continue
         rels.append(Rel(rel, st, dt, m))
         rels.append(Rel(f"{rel}^-1", dt, st, m.T.tocsr()))
     return rels
@@ -67,8 +75,8 @@ def adjacency(g: GraphData) -> sp.csr_matrix:
         si = g.global_ids(st, e["src_id"])
         di = g.global_ids(dt, e["dst_id"])
         ok = ~(pd.isna(si) | pd.isna(di))
-        rows.append(si[ok].astype(int))
-        cols.append(di[ok].astype(int))
+        rows.append(si[ok].astype(np.int64))
+        cols.append(di[ok].astype(np.int64))
     r = np.concatenate(rows)
     c = np.concatenate(cols)
     a = sp.csr_matrix((np.ones(len(r), dtype=np.float32), (r, c)), shape=(g.n_nodes,) * 2)
@@ -88,10 +96,10 @@ class HubPath:
     reach: sp.csr_matrix   # targets x hubs, 1 where the target reaches the hub
 
 
-def hub_paths(g: GraphData, max_len: int = 2) -> list[HubPath]:
+def hub_paths(g: GraphData, max_len: int = 2, rels: list[Rel] | None = None) -> list[HubPath]:
     """All paths of length 1..max_len out of the target type that end on a
     non-target node and never pass back through a target."""
-    rels = typed_relations(g)
+    rels = rels if rels is not None else typed_relations(g)
     by_src: dict[str, list[Rel]] = {}
     for r in rels:
         by_src.setdefault(r.src, []).append(r)
@@ -137,8 +145,24 @@ def _row_reduce(m: sp.csr_matrix, fill: float, fn) -> np.ndarray:
     return out
 
 
-def hub_features(g: GraphData, paths: list[HubPath] | None = None
-                 ) -> tuple[np.ndarray, list[str]]:
+def direct_features(g: GraphData, rels: list[Rel] | None = None
+                    ) -> tuple[list[np.ndarray], list[str]]:
+    """For relations that link targets straight to each other (no shared entity
+    in between, as in YelpChi's same-user links): how many neighbours a target
+    has, and how many 2-step walks leave it. The counting baseline for graphs
+    built that way."""
+    rels = rels if rels is not None else typed_relations(g)
+    cols, names = [], []
+    for r in rels:
+        if r.src == g.target and r.dst == g.target:
+            deg = np.asarray(r.m.sum(axis=1)).ravel()
+            cols += [deg, r.m @ deg]
+            names += [f"{r.name}:degree", f"{r.name}:two_step_walks"]
+    return cols, names
+
+
+def hub_features(g: GraphData, paths: list[HubPath] | None = None,
+                 rels: list[Rel] | None = None) -> tuple[np.ndarray, list[str]]:
     """Per target and per path: how shared are the hubs it reaches, and how
     bursty was the sharing.
 
@@ -176,23 +200,43 @@ def hub_features(g: GraphData, paths: list[HubPath] | None = None
             ms = _row_reduce(rs, 1e6, np.minimum)
             cols.append(np.where(ms >= 1e6, -1.0, ms))
             names.append(f"{p.name}:min_span")
+    dc, dn = direct_features(g, rels)
+    cols += dc
+    names += dn
+    if not cols:
+        return np.zeros((len(g.targets), 0), dtype=np.float32), []
     return np.column_stack(cols).astype(np.float32), names
 
 
 # --------------------------------------------------------------------------- #
 # 2. propagation: what message passing adds
 # --------------------------------------------------------------------------- #
+_CHUNK_NNZ = 1_500_000      # bounds the temporary (nnz x features) block
+
+
+def _row_chunks(m: sp.csr_matrix):
+    """Row ranges whose stored entries stay under _CHUNK_NNZ."""
+    start, n = 0, m.shape[0]
+    while start < n:
+        stop = int(np.searchsorted(m.indptr, m.indptr[start] + _CHUNK_NNZ, side="right")) - 1
+        stop = min(max(stop, start + 1), n)
+        yield start, stop
+        start = stop
+
+
 def _neighbour_max(a: sp.csr_matrix, h: np.ndarray) -> np.ndarray:
     out = np.zeros((a.shape[0], h.shape[1]), dtype=np.float32)
-    nz = np.flatnonzero(np.diff(a.indptr) > 0)
-    if len(nz):
-        out[nz] = np.maximum.reduceat(h[a.indices], a.indptr[:-1][nz], axis=0)
+    for lo, hi in _row_chunks(a):
+        sub = a[lo:hi]
+        nz = np.flatnonzero(np.diff(sub.indptr) > 0)
+        if len(nz):
+            out[lo + nz] = np.maximum.reduceat(h[sub.indices], sub.indptr[:-1][nz], axis=0)
     return out
 
 
 def _neighbour_mean(a: sp.csr_matrix, h: np.ndarray) -> np.ndarray:
     deg = np.asarray(a.sum(axis=1)).ravel()
-    s = a @ h
+    s = np.asarray(a @ h, dtype=np.float32)
     return np.divide(s, deg[:, None], out=np.zeros_like(s), where=deg[:, None] > 0)
 
 
@@ -205,35 +249,52 @@ def _reduce(x: np.ndarray, dim: int, seed: int) -> np.ndarray:
 
 
 def propagate(g: GraphData, hops: int = 3, dim: int = 48, seed: int = 0,
-              a: sp.csr_matrix | None = None) -> tuple[list[np.ndarray], list[str]]:
+              a: sp.csr_matrix | None = None, rels: list[Rel] | None = None
+              ) -> tuple[list[np.ndarray], list[str]]:
     """Multi-hop neighbourhood summaries for the target nodes.
 
-    Hop 1 aggregates neighbours' own attributes separately per neighbour type,
-    so a device's fields are never averaged with a bank's. Later hops aggregate
-    the previous hop's summaries over all neighbours. Each hop is compressed to
-    `dim` columns with PCA, fitted without labels.
+    Hop 1 aggregates neighbours' own attributes separately for every relation
+    (and direction), so a device's fields are never averaged with a bank's and a
+    same-user link is never averaged with a same-rating link. Later hops
+    aggregate the previous hop's summaries over all neighbours. Each hop is
+    compressed to `dim` columns with PCA, fitted without labels.
 
-    Returns one (n_targets x dim) block per hop, plus column names."""
+    Returns the targets' raw per-relation neighbour summaries, then one
+    (n_targets x dim) compressed block per hop, plus column names."""
     a = a if a is not None else adjacency(g)
-    n = g.n_nodes
+    rels = rels if rels is not None else typed_relations(g)
+    feats = {t: encode(g, t)[0] for t in g.nodes}
 
-    typed = []
-    for t, df in g.nodes.items():
-        x_t, _ = encode(g, t)
-        lo, hi = g.offset[t], g.offset[t] + len(df)
-        a_t = a[:, lo:hi].tocsr()
-        deg_t = np.asarray(a_t.sum(axis=1)).ravel()[:, None].astype(np.float32)
-        typed.append(np.log1p(deg_t))
+    tlo, thi = g.offset[g.target], g.offset[g.target] + len(g.targets)
+    blocks1, raw, raw_names = [], [], []
+    for r in rels:
+        x_t = feats[r.dst]
+        lo, hi = g.offset[r.src], g.offset[r.src] + r.m.shape[0]
+        width = 1 + 2 * x_t.shape[1]
+        blk = np.zeros((g.n_nodes, width), dtype=np.float32)
+        blk[lo:hi, 0] = np.log1p(np.asarray(r.m.sum(axis=1)).ravel())
         if x_t.shape[1]:
-            typed.append(_neighbour_mean(a_t, x_t))
-            typed.append(_neighbour_max(a_t, x_t))
-    h = _reduce(np.hstack(typed), dim, seed)
+            blk[lo:hi, 1:1 + x_t.shape[1]] = _neighbour_mean(r.m, x_t)
+            blk[lo:hi, 1 + x_t.shape[1]:] = _neighbour_max(r.m, x_t)
+        blocks1.append(blk)
+        if r.src == g.target:
+            # Targets' own neighbourhood, per relation, uncompressed: the trees
+            # see exactly what a neighbour-aggregating model would see.
+            raw.append(blk[tlo:thi])
+            raw_names += [f"{r.name}:n_log"] + [f"{r.name}:{agg}_{i}" for agg in ("mean", "max")
+                                                for i in range(x_t.shape[1])]
+    h = _reduce(np.hstack(blocks1), dim, seed)
+    del blocks1
 
-    tgt = slice(g.offset[g.target], g.offset[g.target] + len(g.targets))
-    blocks, names = [h[tgt]], [f"hop1_{i}" for i in range(h.shape[1])]
+    tgt = slice(tlo, thi)
+    blocks, names = [], []
+    if raw:
+        blocks.append(np.hstack(raw))
+        names += raw_names
+    blocks.append(h[tgt])
+    names += [f"hop1_{i}" for i in range(h.shape[1])]
     for k in range(2, hops + 1):
         h = _reduce(np.hstack([_neighbour_mean(a, h), _neighbour_max(a, h)]), dim, seed)
         blocks.append(h[tgt])
         names += [f"hop{k}_{i}" for i in range(h.shape[1])]
-    assert all(b.shape[0] == len(g.targets) for b in blocks) and n == a.shape[0]
     return blocks, names

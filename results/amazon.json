@@ -1,0 +1,171 @@
+{
+  "dataset": {
+    "name": "Amazon (fraudulent users)",
+    "target": "user",
+    "n_targets": 11944,
+    "n_labelled": 8639,
+    "n_positive": 821,
+    "prevalence": 0.09503414747077207,
+    "node_types": {
+      "user": 11944
+    },
+    "n_edges": 4778824,
+    "relations": [
+      "U-P-U",
+      "U-S-U",
+      "U-V-U"
+    ]
+  },
+  "groups": {
+    "n_components": 1,
+    "largest_component_share": 1.0,
+    "source": "individual targets (no leak-free grouping exists)",
+    "n_groups": 8639,
+    "largest_group": 1,
+    "singleton_share": 1.0,
+    "warning": "Over half the targets sit in one connected component, so no split can keep connected targets apart and the split falls back to individual targets, as most published results on this kind of graph do. Treat absolute scores as optimistic; the comparison between models stays fair because every model sees the same split."
+  },
+  "split_exposure": {
+    "test_touches_train": 1.0,
+    "test_touches_train_positive": 0.9629199371635677
+  },
+  "attributes": [
+    {
+      "attribute": "user.f19",
+      "auc": 0.883,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "user.f18",
+      "auc": 0.87,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "user.f15",
+      "auc": 0.866,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "user.f13",
+      "auc": 0.852,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "user.f16",
+      "auc": 0.838,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "user.f17",
+      "auc": 0.817,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "user.f12",
+      "auc": 0.812,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "user.f06",
+      "auc": 0.802,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    }
+  ],
+  "metrics": {
+    "own": {
+      "pr_auc_mean": 0.9145046636823309,
+      "pr_auc_std": 0.001346533793194354,
+      "roc_auc_mean": 0.9808992479850418,
+      "roc_auc_std": 0.0008097774511740427,
+      "pr_auc_seeds": [
+        0.9137599304507008,
+        0.9163948442507108,
+        0.9133592163455808
+      ]
+    },
+    "hubs": {
+      "pr_auc_mean": 0.5008850373142417,
+      "pr_auc_std": 0.002839132455607337,
+      "roc_auc_mean": 0.8482523179848663,
+      "roc_auc_std": 0.00389611117001482,
+      "pr_auc_seeds": [
+        0.5044164112946038,
+        0.4974646424921941,
+        0.5007740581559271
+      ]
+    },
+    "own+hubs": {
+      "pr_auc_mean": 0.934758778152018,
+      "pr_auc_std": 0.0008902274082138402,
+      "roc_auc_mean": 0.9857540616213333,
+      "roc_auc_std": 0.0004612990820905618,
+      "pr_auc_seeds": [
+        0.934291682766035,
+        0.9360048097623128,
+        0.9339798419277063
+      ]
+    },
+    "graph": {
+      "pr_auc_mean": 0.9400115462270305,
+      "pr_auc_std": 0.0010637612239666548,
+      "roc_auc_mean": 0.9873847966532981,
+      "roc_auc_std": 0.0006411416169928513,
+      "pr_auc_seeds": [
+        0.9388310152850006,
+        0.9414093647511664,
+        0.9397942586449245
+      ]
+    }
+  },
+  "lift": {
+    "best_baseline": "own+hubs",
+    "pr_auc_lift_mean": 0.005252768075012441,
+    "pr_auc_lift_std": 0.0005315006293934511,
+    "seeds_positive": 3,
+    "n_seeds": 3,
+    "prevalence": 0.09503414747077207,
+    "graph_over_baseline_ratio": 1.0056193835220215
+  },
+  "verdict": "graph is decorative",
+  "random_split": {
+    "pr_auc": {
+      "own+hubs": 0.932873333365235,
+      "graph": 0.940810002352803
+    },
+    "grouped_pr_auc": {
+      "own+hubs": 0.934758778152018,
+      "graph": 0.9400115462270305
+    },
+    "test_touches_train_positive": 0.962147036526251
+  },
+  "breakdown": {},
+  "feature_counts": {
+    "own": 25,
+    "hubs": 6,
+    "hub_paths": 0,
+    "propagated": 297
+  },
+  "settings": {
+    "seeds": 3,
+    "folds": 5,
+    "hops": 3,
+    "dim": 48
+  },
+  "seconds": 323.78885316848755
+}

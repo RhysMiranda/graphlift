@@ -46,27 +46,43 @@ def resolve_groups(g: GraphData, a: sp.csr_matrix) -> tuple[np.ndarray, dict]:
                     largest_group=int(gs.iloc[0]),
                     singleton_share=float((gs == 1).sum() / len(grp)))
         return grp, info
+    if info["largest_component_share"] > 0.5:
+        # Grouping by component would put most of the graph in one fold.
+        info.update(source="individual targets (no leak-free grouping exists)",
+                    n_groups=int(g.labelled.sum()), largest_group=1, singleton_share=1.0,
+                    warning=("Over half the targets sit in one connected component, so no "
+                             "split can keep connected targets apart and the split falls "
+                             "back to individual targets, as most published results on "
+                             "this kind of graph do. Treat absolute scores as optimistic; "
+                             "the comparison between models stays fair because every "
+                             "model sees the same split."))
+        return np.arange(len(comp)).astype(str), info
     info.update(source="connected components", n_groups=info["n_components"],
                 largest_group=int(sizes.iloc[0]),
                 singleton_share=float((sizes == 1).sum() / len(comp)))
-    if info["largest_component_share"] > 0.5:
-        info["warning"] = ("Over half the targets sit in one connected component, so no "
-                           "split can keep them apart. Declare a `group` column (e.g. "
-                           "case or cluster ids) or treat these results as optimistic.")
     return comp.astype(str), info
 
 
 def exposure(paths: list[HubPath], y: np.ndarray, train: np.ndarray,
-             test: np.ndarray) -> dict:
+             test: np.ndarray, direct: sp.csr_matrix | None = None) -> dict:
     """Share of test targets that share an entity (within the hub paths) with a
-    training target, and with a training POSITIVE. The second is the channel
-    through which a label-aware model can copy answers across the split."""
-    reach = sp.hstack([p.reach for p in paths]).tocsr()
-    hub_train = np.asarray(reach[train].sum(axis=0)).ravel() > 0
-    hub_pos = np.asarray(reach[train & (y == 1)].sum(axis=0)).ravel() > 0
-    rt = reach[test]
-    any_train = (rt @ hub_train.astype(np.float32)) > 0
-    any_pos = (rt @ hub_pos.astype(np.float32)) > 0
+    training target, or link to one directly, and the same for a training
+    POSITIVE. The second is the channel through which a label-aware model can
+    copy answers across the split."""
+    n_t = len(y)
+    any_train = np.zeros(int(test.sum()), bool)
+    any_pos = np.zeros(int(test.sum()), bool)
+    if paths:
+        reach = sp.hstack([p.reach for p in paths]).tocsr()
+        hub_train = np.asarray(reach[train].sum(axis=0)).ravel() > 0
+        hub_pos = np.asarray(reach[train & (y == 1)].sum(axis=0)).ravel() > 0
+        rt = reach[test]
+        any_train |= (rt @ hub_train.astype(np.float32)) > 0
+        any_pos |= (rt @ hub_pos.astype(np.float32)) > 0
+    if direct is not None and direct.nnz:
+        dt = direct[test]
+        any_train |= (dt @ train.astype(np.float32)) > 0
+        any_pos |= (dt @ (train & (y == 1)).astype(np.float32)) > 0
     n = max(int(test.sum()), 1)
     return {"test_touches_train": float(any_train.sum() / n),
             "test_touches_train_positive": float(any_pos.sum() / n)}
@@ -79,11 +95,20 @@ def attribute_scan(g: GraphData, a: sp.csr_matrix, threshold: float = 0.9,
 
     Declared exclusions are scanned too, so the report shows what WOULD have
     leaked had they not been excluded."""
-    y = g.y
+    lab = g.labelled
+    y = g.y[lab]
     lo = g.offset[g.target]
     tgt = slice(lo, lo + len(g.targets))
-    a_t = a[tgt]
-    two = ((a_t @ a) > 0).astype(np.float32).tocsr()
+    a_t = a[tgt][lab]
+    others = [t for t in g.nodes if t != g.target]
+    # Two hops out from every target, restricted to non-target columns. Skipped
+    # when there are no other node types (a graph of targets linked directly).
+    two = None
+    if others:
+        keep = np.zeros(a.shape[0], dtype=np.float32)
+        for t in others:
+            keep[g.offset[t]:g.offset[t] + len(g.nodes[t])] = 1.0
+        two = ((a_t @ (a @ sp.diags(keep))) > 0).astype(np.float32).tocsr()
     rows = []
     # The target's own columns first: a label copied into a feature column is
     # the most common leak of all.
@@ -97,7 +122,7 @@ def attribute_scan(g: GraphData, a: sp.csr_matrix, threshold: float = 0.9,
             if not (1 < s.nunique() <= MAX_CATEGORIES):
                 continue
             s = pd.Series(pd.factorize(s)[0], index=s.index)
-        v = np.nan_to_num(s.to_numpy(dtype=float), nan=0.0)
+        v = np.nan_to_num(s.to_numpy(dtype=float), nan=0.0)[lab]
         if np.std(v) == 0:
             continue
         auc = roc_auc_score(y, v)
@@ -110,7 +135,7 @@ def attribute_scan(g: GraphData, a: sp.csr_matrix, threshold: float = 0.9,
             continue
         o = g.offset[t]
         hop1 = a_t[:, o:o + len(df)].tocsr()
-        hop2 = two[:, o:o + len(df)].tocsr()
+        hop2 = two[:, o:o + len(df)].tocsr() if two is not None else sp.csr_matrix(hop1.shape)
         excluded = set(g.exclude.get(t, []))
         for c in df.columns:
             if c == "id":

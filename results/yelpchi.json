@@ -1,0 +1,171 @@
+{
+  "dataset": {
+    "name": "YelpChi (spam reviews)",
+    "target": "review",
+    "n_targets": 45954,
+    "n_labelled": 45954,
+    "n_positive": 6677,
+    "prevalence": 0.14529747138442792,
+    "node_types": {
+      "review": 45954
+    },
+    "n_edges": 4025674,
+    "relations": [
+      "R-S-R",
+      "R-T-R",
+      "R-U-R"
+    ]
+  },
+  "groups": {
+    "n_components": 26,
+    "largest_component_share": 0.9988249118683902,
+    "source": "individual targets (no leak-free grouping exists)",
+    "n_groups": 45954,
+    "largest_group": 1,
+    "singleton_share": 1.0,
+    "warning": "Over half the targets sit in one connected component, so no split can keep connected targets apart and the split falls back to individual targets, as most published results on this kind of graph do. Treat absolute scores as optimistic; the comparison between models stays fair because every model sees the same split."
+  },
+  "split_exposure": {
+    "test_touches_train": 0.9995140086537323,
+    "test_touches_train_positive": 0.9735895182506328
+  },
+  "attributes": [
+    {
+      "attribute": "review.f05",
+      "auc": 0.664,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "review.f08",
+      "auc": 0.6,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "review.f21",
+      "auc": 0.597,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "review.f20",
+      "auc": 0.594,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "review.f02",
+      "auc": 0.588,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "review.f01",
+      "auc": 0.566,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "review.f15",
+      "auc": 0.563,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "review.f23",
+      "auc": 0.563,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    }
+  ],
+  "metrics": {
+    "own": {
+      "pr_auc_mean": 0.8410699526778078,
+      "pr_auc_std": 0.002155051126158882,
+      "roc_auc_mean": 0.9529945467179841,
+      "roc_auc_std": 0.0005481614774348262,
+      "pr_auc_seeds": [
+        0.84186294554356,
+        0.843221934177088,
+        0.8381249783127754
+      ]
+    },
+    "hubs": {
+      "pr_auc_mean": 0.3313379300591881,
+      "pr_auc_std": 0.00222944274644357,
+      "roc_auc_mean": 0.7607919286579437,
+      "roc_auc_std": 0.0006215712929880491,
+      "pr_auc_seeds": [
+        0.32840091521305736,
+        0.33379945323475213,
+        0.33181342172975486
+      ]
+    },
+    "own+hubs": {
+      "pr_auc_mean": 0.8789797743507327,
+      "pr_auc_std": 0.0005297607491692687,
+      "roc_auc_mean": 0.9665107125303134,
+      "roc_auc_std": 0.0001636555657900571,
+      "pr_auc_seeds": [
+        0.8783543972031657,
+        0.8796497404700131,
+        0.8789351853790196
+      ]
+    },
+    "graph": {
+      "pr_auc_mean": 0.9130328504347899,
+      "pr_auc_std": 0.0003973206784296173,
+      "roc_auc_mean": 0.9764152627103929,
+      "roc_auc_std": 0.00018196482994142888,
+      "pr_auc_seeds": [
+        0.9128226398437786,
+        0.9126866750938487,
+        0.913589236366742
+      ]
+    }
+  },
+  "lift": {
+    "best_baseline": "own+hubs",
+    "pr_auc_lift_mean": 0.03405307608405702,
+    "pr_auc_lift_std": 0.0007225135688919875,
+    "seeds_positive": 3,
+    "n_seeds": 3,
+    "prevalence": 0.14529747138442792,
+    "graph_over_baseline_ratio": 1.0387415923298244
+  },
+  "verdict": "graph helps",
+  "random_split": {
+    "pr_auc": {
+      "own+hubs": 0.8769980539687406,
+      "graph": 0.9131806649458051
+    },
+    "grouped_pr_auc": {
+      "own+hubs": 0.8789797743507327,
+      "graph": 0.9130328504347899
+    },
+    "test_touches_train_positive": 0.9728710341354585
+  },
+  "breakdown": {},
+  "feature_counts": {
+    "own": 32,
+    "hubs": 6,
+    "hub_paths": 0,
+    "propagated": 339
+  },
+  "settings": {
+    "seeds": 3,
+    "folds": 5,
+    "hops": 3,
+    "dim": 48
+  },
+  "seconds": 787.8401730060577
+}
