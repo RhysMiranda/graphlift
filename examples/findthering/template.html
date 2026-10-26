@@ -1,0 +1,696 @@
+<title>Find the Ring</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@700;900&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: one sheet of continuous green-bar computer paper on a dark desk, the way a bank's
+   fraud desk printed its case reports. The link chart is plotted on the paper; the reviewer's
+   notes and the summary print beside it. Deliberately single-theme: paper is paper. */
+:root {
+  --desk: #232b27;
+  --desk-2: #2c3631;
+  --paper: #f7f8f1;
+  --band: #e0ecd6;
+  --ink: #1b241f;
+  --ink-2: #4f5d55;
+  --rule: #a7b8a6;
+  --stamp: #c3312a;
+  --pen-blue: #2747a3;
+  --pen-violet: #6b3aa8;
+  --pencil: #7c877f;
+  --highlight: #f4d43a;
+  --stencil: "Big Shoulders Stencil Display", "Impact", "Arial Narrow", sans-serif;
+  --type: "Courier Prime", "Courier New", Courier, monospace;
+  --data: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --band-h: 26px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--desk); }
+body {
+  background: var(--desk)
+    radial-gradient(1200px 600px at 50% -10%, var(--desk-2), transparent 70%) no-repeat;
+  color: var(--ink);
+  font: 400 16px/var(--band-h) var(--type);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 22px 40px;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px dashed var(--pen-blue); outline-offset: 3px; }
+::selection { background: var(--highlight); }
+
+/* ---------- the sheet ---------- */
+.sheet {
+  position: relative; max-width: 1180px; margin: 0 auto;
+  background: repeating-linear-gradient(to bottom, var(--paper) 0 var(--band-h), var(--band) var(--band-h) calc(var(--band-h) * 2));
+  padding: 0 52px;
+  box-shadow: 0 1px 0 rgb(0 0 0 / .25), 0 18px 40px rgb(0 0 0 / .35);
+}
+/* tractor-feed margins: punched holes and a perforation line */
+.sheet::before, .sheet::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 34px;
+  background:
+    radial-gradient(circle at 17px 13px, var(--desk) 0 5.5px, rgb(0 0 0 / .18) 6px, transparent 6.6px) 0 0 / 34px var(--band-h) repeat-y,
+    var(--paper);
+}
+.sheet::before { left: 0; border-right: 1.5px dashed var(--rule); }
+.sheet::after { right: 0; border-left: 1.5px dashed var(--rule); }
+.perf { height: 14px; border-bottom: 1.5px dashed var(--rule); margin: 0 -18px; }
+@media (max-width: 640px) {
+  .sheet { padding: 0 24px; --band-h: 24px; }
+  .sheet::before, .sheet::after { width: 14px; background:
+    radial-gradient(circle at 7px 12px, var(--desk) 0 3.4px, transparent 4px) 0 0 / 14px var(--band-h) repeat-y, var(--paper); }
+  .perf { margin: 0 -10px; }
+}
+
+/* ---------- print header ---------- */
+.head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 24px; align-items: end; padding-top: 10px; }
+.title {
+  margin: 0; font: 900 clamp(46px, 8vw, 92px)/.86 var(--stencil); letter-spacing: .01em; text-transform: uppercase;
+  color: var(--ink);
+}
+.title em { font-style: normal; color: var(--stamp); }
+.meters { display: grid; grid-template-columns: auto auto; gap: 0 14px; font: 500 13px/var(--band-h) var(--data); text-transform: uppercase; letter-spacing: .06em; }
+.meters dt { color: var(--ink-2); }
+.meters dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.meters dd.clock { font-size: 22px; letter-spacing: .02em; }
+.meters dd.low { color: var(--stamp); }
+.runline { grid-column: 1 / -1; font: 400 12px/var(--band-h) var(--data); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); border-top: 2px solid var(--ink); margin-top: 8px; display: flex; flex-wrap: wrap; gap: 0 22px; }
+@media (max-width: 640px) { .head { grid-template-columns: minmax(0, 1fr); } .meters { grid-template-columns: repeat(3, auto auto); justify-content: start; } .meters dd { text-align: left; } }
+
+/* ---------- memo ---------- */
+.memo { margin-top: var(--band-h); max-width: 74ch; }
+.memo .to { display: grid; grid-template-columns: 6ch minmax(0, 1fr); font-weight: 700; }
+.memo p { margin: 0 0 var(--band-h); }
+.memo .row { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: center; margin-bottom: var(--band-h); }
+.hint { font: 400 13px/1.5 var(--data); color: var(--ink-2); }
+.memo.compact p, .memo.compact .to { display: none; }
+.memo.compact { margin-top: 6px; }
+.memo.compact .row { margin-bottom: 4px; }
+
+/* rubber-stamp buttons */
+.stampbtn {
+  display: inline-block; cursor: pointer; background: transparent; color: var(--stamp);
+  font: 900 26px/1 var(--stencil); letter-spacing: .06em; text-transform: uppercase;
+  border: 3px solid var(--stamp); outline: 1.5px solid var(--stamp); outline-offset: 3px;
+  padding: 9px 18px 7px; transform: rotate(-1.6deg); border-radius: 3px;
+  transition: background .12s, color .12s, transform .12s;
+}
+.stampbtn:hover { background: var(--stamp); color: var(--paper); transform: rotate(-1.6deg) scale(1.02); }
+.stampbtn:active { transform: rotate(-1.6deg) scale(.97); }
+.stampbtn.small { font-size: 19px; padding: 7px 12px 5px; border-width: 2.5px; outline-width: 1px; }
+.keybtn {
+  cursor: pointer; background: var(--paper); border: 1.5px solid var(--ink); border-radius: 2px;
+  font: 600 12px/1 var(--data); letter-spacing: .08em; text-transform: uppercase; padding: 9px 12px;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.keybtn:hover { background: var(--band); }
+.keybtn:active { transform: translate(2px, 2px); box-shadow: none; }
+
+/* ---------- body grid ---------- */
+.cols { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 0 40px; margin-top: var(--band-h); }
+@media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.figcap { font: 500 12px/var(--band-h) var(--data); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-2); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-top: 1.5px solid var(--ink); }
+
+.plot { position: relative; aspect-ratio: 1 / 1; max-width: 100%; border: 1.5px solid var(--ink); }
+.plot::before, .plot::after { content: "+"; position: absolute; font: 400 16px/1 var(--data); color: var(--ink-2); }
+.plot::before { left: -14px; top: -15px; }
+.plot::after { right: -14px; bottom: -15px; }
+#board { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#board:active { cursor: grabbing; }
+.zoom { position: absolute; right: 8px; top: 8px; display: flex; gap: 6px; }
+.zoom button { width: 32px; height: 32px; padding: 0; font: 600 15px/1 var(--data); }
+
+/* chart marks */
+.e { stroke: var(--ink); stroke-opacity: .32; stroke-width: 1.3; }
+.e.money { stroke-opacity: .7; stroke-dasharray: 7 5; marker-end: url(#arrow); }
+.hub rect { fill: var(--paper); stroke: var(--ink); stroke-width: 1.4; }
+.hub text { font: 600 11px var(--data); fill: var(--ink); text-anchor: middle; dominant-baseline: central; letter-spacing: .04em; pointer-events: none; }
+.hub { cursor: help; }
+.hub:hover rect, .hub:focus-visible rect { fill: var(--band); }
+.app { cursor: pointer; }
+.app .hit { fill: transparent; }
+.app .body { fill: var(--paper); stroke: var(--ink); stroke-width: 2.1; }
+.app:hover .body, .app:focus-visible .body { stroke-width: 3.2; }
+.app .hl { fill: var(--highlight); opacity: 0; mix-blend-mode: multiply; pointer-events: none; }
+.app .mark { fill: none; stroke: var(--stamp); stroke-width: 3.4; opacity: 0; pointer-events: none; filter: url(#ink); }
+.app .dot { fill: var(--stamp); opacity: 0; pointer-events: none; filter: url(#ink); }
+.app.on .mark, .app.on .dot { opacity: 1; }
+.app.on .body { stroke: var(--stamp); }
+/* reveal: highlighter on the truth, pen circles on the chosen reviewer's picks */
+.reveal .app.fraud .hl { opacity: .78; }
+.reveal .app .mark, .reveal .app .dot { opacity: 0; }
+.reveal .app.on .body { stroke: var(--ink); }
+.reveal .app.pick .mark { opacity: 1; stroke: var(--pick); }
+.reveal .app.pick .dot { opacity: .9; fill: var(--pick); }
+.dim .app:not(.lit), .dim .hub:not(.lit), .dim .e:not(.lit) { opacity: .14; }
+.hub.lit rect { stroke-width: 2.6; }
+.e.lit { stroke-opacity: .85; stroke-width: 2; }
+
+/* ---------- right column: notes & summary ---------- */
+.side { min-width: 0; }
+.h2 { font: 900 30px/calc(var(--band-h) * 1.5) var(--stencil); text-transform: uppercase; letter-spacing: .03em; margin: 0; }
+.label { font: 600 12px/var(--band-h) var(--data); text-transform: uppercase; letter-spacing: .1em; color: var(--ink-2); margin: 0; }
+.field { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 8px; align-items: baseline; }
+.field dt { font: 500 12px/var(--band-h) var(--data); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-2); white-space: nowrap; }
+.field dd { margin: 0; border-bottom: 1.5px dotted var(--ink-2); min-height: var(--band-h); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.notes { margin-top: 0; }
+.notes .blank { color: var(--ink-2); font-style: italic; }
+.symbols { list-style: none; margin: var(--band-h) 0 0; padding: 0; font-size: 15px; }
+.symbols li { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; }
+.symbols svg { overflow: visible; }
+
+/* summary printout */
+.verdict { position: relative; margin: 6px 0 var(--band-h); min-height: 120px; }
+.bigstamp {
+  display: inline-block; color: var(--stamp); border: 4px solid var(--stamp); outline: 2px solid var(--stamp); outline-offset: 4px;
+  font: 900 clamp(40px, 6vw, 62px)/.95 var(--stencil); text-transform: uppercase; letter-spacing: .02em;
+  padding: 10px 16px 6px; transform: rotate(-4deg); margin: 12px 0 10px 6px; filter: url(#ink-html);
+  mix-blend-mode: multiply;
+}
+.bigstamp small { display: block; font-size: .36em; letter-spacing: .14em; }
+.verdict p { margin: 0; }
+.tbl { width: 100%; border-collapse: collapse; font: 400 14px/var(--band-h) var(--data); font-variant-numeric: tabular-nums; }
+.tbl th { text-align: left; font-weight: 600; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); line-height: 1.2; padding: 4px 6px 4px 0; border-bottom: 2px solid var(--ink); vertical-align: bottom; }
+.tbl th.n, .tbl td.n { text-align: right; padding-right: 0; padding-left: 10px; }
+.tbl td { padding: 0 6px 0 0; border-bottom: 1px dashed var(--rule); }
+.tbl tr.party { cursor: pointer; }
+.tbl tr.party:hover td { background: rgb(255 255 255 / .55); }
+.tbl .who { display: flex; align-items: center; gap: 8px; text-transform: uppercase; font-weight: 600; letter-spacing: .03em; font-size: 13px; }
+.tbl .who svg { flex: none; }
+.tbl tr[aria-pressed="true"] .who span { text-decoration: underline wavy var(--c); text-underline-offset: 5px; }
+.tblwrap { overflow-x: auto; }
+.legend2 { display: flex; flex-wrap: wrap; gap: 0 18px; font: 400 12px/var(--band-h) var(--data); color: var(--ink-2); }
+.legend2 span { display: inline-flex; align-items: center; gap: 6px; }
+.sw-hl { width: 16px; height: 11px; background: var(--highlight); display: inline-block; }
+.views { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
+.views .keybtn[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.note { margin-top: 4px; color: var(--ink-2); font-size: 15px; }
+
+.carbon {
+  margin-top: var(--band-h); padding: 6px 12px; border: 1.5px dashed var(--ink-2);
+  background: rgb(255 255 255 / .55); font: 400 14px/1.6 var(--type); user-select: all; overflow-wrap: anywhere;
+}
+.actions { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: var(--band-h); }
+.toast { font: 500 12px/var(--band-h) var(--data); color: var(--pen-blue); min-height: var(--band-h); }
+
+/* case notes */
+.rings { list-style: none; margin: 0; padding: 0; counter-reset: n; }
+.rings li { counter-increment: n; padding: 0 0 var(--band-h); cursor: pointer; }
+.rings .rt { font-weight: 700; text-transform: uppercase; letter-spacing: .02em; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.rings .rt::before { content: "Note " counter(n, decimal-leading-zero) " \2014\00a0"; color: var(--ink-2); font-weight: 400; }
+.rings .rt .n { margin-left: auto; font: 500 12px/var(--band-h) var(--data); color: var(--ink-2); }
+.rings p { margin: 0; }
+.rings li:hover .rt, .rings li.sel .rt { background: linear-gradient(transparent 30%, var(--highlight) 30% 85%, transparent 85%); }
+.boxes { display: flex; flex-wrap: wrap; gap: 0 16px; font: 500 12px/var(--band-h) var(--data); text-transform: uppercase; letter-spacing: .05em; }
+.boxes span { white-space: nowrap; }
+.boxes b { font-weight: 600; color: var(--c); }
+
+/* appendix */
+.appx { margin-top: calc(var(--band-h) * 2); border-top: 2px solid var(--ink); }
+.appx .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 40px; }
+@media (max-width: 900px) { .appx .grid { grid-template-columns: minmax(0, 1fr); } }
+.bars { margin-top: 4px; }
+.bars .r { display: grid; grid-template-columns: 12.5em minmax(0, 1fr) 3.6em; gap: 12px; align-items: center; font: 500 12px/var(--band-h) var(--data); text-transform: uppercase; letter-spacing: .05em; }
+.bars .track { position: relative; height: 14px; border: 1.2px solid var(--ink); background: var(--paper); }
+.bars .track b { position: absolute; left: 0; top: 0; bottom: 0; border-right: 1.5px solid var(--ink);
+  background: repeating-linear-gradient(135deg, var(--c) 0 2px, transparent 2px 5px); }
+.bars .track s { position: absolute; top: -5px; bottom: -5px; border-left: 1.5px dashed var(--ink); }
+.bars .v { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.bars .axis { display: grid; grid-template-columns: 12.5em minmax(0, 1fr) 3.6em; gap: 12px; font: 400 11px/var(--band-h) var(--data); color: var(--ink-2); }
+.bars .axis div { display: flex; justify-content: space-between; }
+@media (max-width: 520px) { .bars .r, .bars .axis { grid-template-columns: 8.5em minmax(0, 1fr) 3.2em; font-size: 11px; } }
+.fine { font-size: 14px; color: var(--ink-2); }
+.fine p { margin: 0 0 var(--band-h); max-width: 70ch; }
+.foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0 20px; font: 400 11px/var(--band-h) var(--data); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); border-top: 1.5px solid var(--ink); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="ink-html" x="-5%" y="-10%" width="110%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="11" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.35" result="speck"/>
+      <feComposite in="SourceGraphic" in2="speck" operator="in" result="inked"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="1" seed="4" result="w"/>
+      <feDisplacementMap in="inked" in2="w" scale="2.5"/>
+    </filter>
+  </defs>
+</svg>
+
+<div class="sheet" id="root">
+  <div class="perf" aria-hidden="true"></div>
+
+  <header class="head">
+    <h1 class="title">Find the <em>Ring</em></h1>
+    <dl class="meters">
+      <dt>Case</dt><dd id="caseNo">01/03</dd>
+      <dt>Marked</dt><dd id="count">000</dd>
+      <dt>Time</dt><dd class="clock" id="clock" aria-live="off">01:30</dd>
+    </dl>
+    <div class="runline" id="runline">
+      <span>Loan book review</span><span>Synthetic data</span><span id="runApps">100 applications</span><span id="runLinks">55 shared items</span>
+    </div>
+  </header>
+
+  <section class="memo" id="memo">
+    <div class="to"><span>TO:</span><span>Reviewer</span></div>
+    <div class="to"><span>RE:</span><span id="memoRe">Case 01, suspected organised fraud</span></div>
+    <p></p>
+    <p>The applications in this book are linked by what they share: devices, bank accounts, addresses, documents. Some sharing is a family on one laptop. Some is a ring.</p>
+    <p>You have 90 seconds to mark every application you believe is fraud. Then two models review the same book with the same number of marks: one that counts connections, and one that reads the whole network.</p>
+    <div class="row">
+      <button class="stampbtn" id="startBtn">Start review</button>
+      <button class="stampbtn small" id="doneBtn" hidden>Close the file</button>
+      <span class="hint" id="hint">Tap a circle to mark it. Tap a square to see what's shared. Pinch or scroll to zoom.</span>
+    </div>
+  </section>
+
+  <div class="cols">
+    <div>
+      <div class="plot" id="stage">
+        <svg id="board" viewBox="0 0 1000 1000" role="group" aria-label="Link chart of loan applications and the things they share">
+          <defs>
+            <filter id="ink" x="-30%" y="-30%" width="160%" height="160%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.07" numOctaves="2" seed="7" result="w"/>
+              <feDisplacementMap in="SourceGraphic" in2="w" scale="3.2"/>
+            </filter>
+            <marker id="arrow" viewBox="0 0 10 10" refX="19" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="var(--ink)"/>
+            </marker>
+          </defs>
+          <g id="vp"><g id="gE"></g><g id="gH"></g><g id="gA"></g></g>
+        </svg>
+        <div class="zoom">
+          <button class="keybtn" id="zin" aria-label="Zoom in">+</button>
+          <button class="keybtn" id="zout" aria-label="Zoom out">−</button>
+          <button class="keybtn" id="zfit" aria-label="Reset view">⌂</button>
+        </div>
+      </div>
+      <div class="figcap"><span id="figTitle">Fig. 1 · Link chart, case 01</span><span>Drawn from Syn Env, seed 2</span></div>
+    </div>
+
+    <aside class="side">
+      <section id="playPanel">
+        <h2 class="h2">Reviewer's notes</h2>
+        <dl class="field notes" id="inspect">
+          <dt>Item</dt><dd class="blank">tap anything on the chart</dd>
+          <dt>Amount</dt><dd></dd>
+          <dt>Purpose</dt><dd></dd>
+          <dt>Applicant</dt><dd></dd>
+          <dt>Filed</dt><dd></dd>
+          <dt>Shares</dt><dd></dd>
+        </dl>
+        <p class="label" style="margin-top:var(--band-h)">Key to symbols</p>
+        <ul class="symbols" id="symbols"></ul>
+      </section>
+
+      <section id="resultPanel" hidden>
+        <h2 class="h2">Review summary</h2>
+        <div class="verdict">
+          <div class="bigstamp" id="bigstamp">3 of 6<small>rings found</small></div>
+          <p id="headline"></p>
+        </div>
+        <div class="tblwrap">
+          <table class="tbl">
+            <thead><tr><th>Reviewer</th><th class="n">Rings<br>found</th><th class="n">Fraud<br>marked</th><th class="n">False<br>alarms</th></tr></thead>
+            <tbody id="score"></tbody>
+          </table>
+        </div>
+        <p class="note" id="budgetNote"></p>
+        <p class="label" style="margin-top:var(--band-h)">Show on the chart</p>
+        <div class="views" id="views" role="group" aria-label="Show on the chart"></div>
+        <div class="legend2">
+          <span><span class="sw-hl"></span>really fraud</span>
+          <span><svg width="18" height="18" viewBox="-9 -9 18 18"><circle r="7" fill="none" stroke="var(--pick, var(--stamp))" stroke-width="2.4"/></svg>marked by the selected reviewer</span>
+        </div>
+        <div class="carbon" id="shareText"></div>
+        <div class="actions">
+          <button class="stampbtn small" id="nextBtn">Next case</button>
+          <button class="keybtn" id="copyBtn">Copy result</button>
+          <button class="keybtn" id="againBtn">Replay case</button>
+        </div>
+        <div class="toast" id="toast" aria-live="polite"></div>
+      </section>
+    </aside>
+  </div>
+
+  <section id="ringPanel" hidden style="margin-top:var(--band-h)">
+    <h2 class="h2">Case notes</h2>
+    <p class="label">Tap a note to trace that ring on the chart</p>
+    <ol class="rings" id="rings"></ol>
+  </section>
+
+  <section class="appx">
+    <div class="grid">
+      <div>
+        <h2 class="h2">Appendix A</h2>
+        <p class="label" id="bookLabel">All applications in the generated book</p>
+        <p class="fine" id="bookIntro"></p>
+        <div class="bars" id="book"></div>
+      </div>
+      <div class="fine">
+        <h2 class="h2" style="color:var(--ink)">Method</h2>
+        <p id="method"></p>
+        <p>Made by Rhys Miranda with Syn Env, a generator of synthetic loan-fraud networks, and graphlift, an audit of whether graph structure helps a model. No real people, businesses or loans appear here.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot"><span>Find the Ring · fraud desk printout</span><span id="footCase">Case 01 of 03 · page 1 of 1</span></footer>
+  <div class="perf" aria-hidden="true"></div>
+</div>
+
+<script id="data" type="application/json">__DATA__</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+(() => {
+  const D = JSON.parse(document.getElementById("data").textContent);
+  const PLAY_SECONDS = 90;
+  const SVGNS = "http://www.w3.org/2000/svg";
+  const CODES = { bank: "BK", device: "DV", document: "DC", person: "AP", business: "BZ",
+                  employee: "LO", email: "EM", address: "AD", employer: "EP", collector: "RX" };
+  const PARTIES = [
+    { key: "you", name: "You", color: "var(--stamp)" },
+    { key: "own", name: "Row-by-row model", color: "var(--pencil)",
+      blurb: "reads each application on its own" },
+    { key: "hubs", name: "Connection counter", color: "var(--pen-blue)",
+      blurb: "counts who shares what, and how close in time" },
+    { key: "graph", name: "Graph model", color: "var(--pen-violet)",
+      blurb: "reads three hops of the network" },
+  ];
+  const $ = id => document.getElementById(id);
+  const pad = (n, w = 2) => String(n).padStart(w, "0");
+
+  const S = { board: 0, phase: "intro", flags: new Set(), left: PLAY_SECONDS, view: "truth", timer: null, ring: -1 };
+  let B, appEls = [], hubEls = [], edgeEls = [], k = 0, picks = {};
+
+  function el(tag, attrs, parent) {
+    const e = document.createElementNS(SVGNS, tag);
+    for (const a in attrs) e.setAttribute(a, attrs[a]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  // ---------- chart ----------
+  function buildBoard() {
+    B = D.boards[S.board];
+    const gE = $("gE"), gH = $("gH"), gA = $("gA");
+    gE.replaceChildren(); gH.replaceChildren(); gA.replaceChildren();
+    appEls = []; hubEls = []; edgeEls = [];
+    B.edges.forEach(([u, v, t]) => {
+      const a = t === 0 ? B.apps[u].xy : B.ents[u].xy, b = B.ents[v].xy;
+      const line = el("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], class: "e" + (t ? " money" : "") }, gE);
+      edgeEls.push({ line, u, v, t });
+    });
+    B.ents.forEach((h, i) => {
+      const g = el("g", { class: "hub", transform: `translate(${h.xy[0]},${h.xy[1]})`, tabindex: 0,
+                          role: "button", "aria-label": `${D.kinds[h.kind]} shared by ${h.n}` }, gH);
+      el("rect", { x: -15, y: -11, width: 30, height: 22, rx: 1.5 }, g);
+      el("text", {}, g).textContent = CODES[h.kind] || "··";
+      g.addEventListener("click", ev => { ev.stopPropagation(); inspectHub(i); });
+      g.addEventListener("keydown", ev => { if (ev.key === "Enter") inspectHub(i); });
+      hubEls.push(g);
+    });
+    B.apps.forEach((a, i) => {
+      const g = el("g", { class: "app" + (a.fraud ? " fraud" : ""), transform: `translate(${a.xy[0]},${a.xy[1]})`,
+                          tabindex: 0, role: "button", "aria-pressed": "false",
+                          "aria-label": `Application ${a.id}` }, gA);
+      el("circle", { class: "hit", r: 20 }, g);
+      el("circle", { class: "hl", r: 20 }, g);
+      el("circle", { class: "body", r: 12.5 }, g);
+      el("circle", { class: "dot", r: 6.2 }, g);
+      el("circle", { class: "mark", r: 18.5, transform: `rotate(${(i * 47) % 360})`, "stroke-dasharray": "96 12" }, g);
+      g.addEventListener("click", ev => { ev.stopPropagation(); tapApp(i); });
+      g.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); tapApp(i); } });
+      appEls.push(g);
+    });
+    const n = D.boards.length;
+    $("caseNo").textContent = `${pad(S.board + 1)}/${pad(n)}`;
+    $("memoRe").textContent = `Case ${pad(S.board + 1)}, suspected organised fraud`;
+    $("runApps").textContent = `${B.apps.length} applications`;
+    $("runLinks").textContent = `${B.ents.length} shared items`;
+    $("figTitle").textContent = `Fig. 1 · Link chart, case ${pad(S.board + 1)}`;
+    $("footCase").textContent = `Case ${pad(S.board + 1)} of ${pad(n)} · page 1 of 1`;
+    buildSymbols();
+    clearInspect();
+    syncFlags();
+  }
+
+  function buildSymbols() {
+    const used = [...new Set(B.ents.map(h => h.kind))];
+    const items = [
+      [`<svg width="30" height="26" viewBox="-15 -13 30 26"><circle r="9" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.8"/></svg>`, "One loan application"],
+      [`<svg width="30" height="26" viewBox="-15 -13 30 26"><circle r="9" fill="var(--paper)" stroke="var(--stamp)" stroke-width="1.8"/><circle r="4.6" fill="var(--stamp)"/><circle r="13" fill="none" stroke="var(--stamp)" stroke-width="2.6"/></svg>`, "Marked by you"],
+      [`<svg width="34" height="26" viewBox="-17 -13 34 26"><line x1="-16" y1="0" x2="16" y2="0" stroke="var(--ink)" stroke-width="1.6" stroke-dasharray="6 4"/></svg>`, "Money forwarded between accounts"],
+      ...used.map(kd => [`<svg width="30" height="26" viewBox="-15 -13 30 26"><rect x="-13" y="-9" width="26" height="18" rx="1.5" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.4"/><text text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Mono, monospace" font-weight="600" font-size="9.5" fill="var(--ink)">${CODES[kd]}</text></svg>`,
+                         `${D.kinds[kd]} shared by 2 or more`]),
+    ];
+    $("symbols").innerHTML = items.map(([svg, t]) => `<li>${svg}<span>${t}</span></li>`).join("");
+  }
+
+  function sharesOf(i) {
+    const out = [];
+    B.edges.forEach(([u, v, t]) => { if (t === 0 && u === i) out.push(v); });
+    return out;
+  }
+  const money = n => "$" + n.toLocaleString("en-US");
+  function setInspect(rows) {
+    $("inspect").innerHTML = rows.map(([dt, dd, cls]) => `<dt>${dt}</dt><dd${cls ? ` class="${cls}"` : ""}>${dd}</dd>`).join("");
+  }
+  function clearInspect() {
+    setInspect([["Item", "tap anything on the chart", "blank"], ["Amount", ""], ["Purpose", ""], ["Applicant", ""], ["Filed", ""], ["Shares", ""]]);
+  }
+  function inspectApp(i) {
+    const a = B.apps[i];
+    const sh = sharesOf(i).map(v => `${CODES[B.ents[v].kind]} ${D.kinds[B.ents[v].kind].toLowerCase()} (+${B.ents[v].n - 1})`);
+    setInspect([["Item", `Application ${a.id}`], ["Amount", money(a.amount)],
+                ["Purpose", `${a.purpose}, ${a.sme ? "business" : "personal"}`],
+                ["Applicant", `aged ${a.age}`], ["Filed", `day ${a.day} of 365`],
+                ["Shares", sh.length ? sh.join("<br>") : "nothing in this book"]]);
+  }
+  function inspectHub(i) {
+    const h = B.ents[i];
+    const what = h.kind === "collector"
+      ? "receives money forwarded from other accounts; no application pays into it directly"
+      : `shared by ${h.n} applications`;
+    setInspect([["Item", `${CODES[h.kind]} · ${D.kinds[h.kind]}`], ["Detail", what]]);
+  }
+
+  function tapApp(i) {
+    inspectApp(i);
+    if (S.phase !== "play") return;
+    S.flags.has(i) ? S.flags.delete(i) : S.flags.add(i);
+    syncFlags();
+    snapshot();
+  }
+  function syncFlags() {
+    appEls.forEach((g, i) => {
+      const on = S.flags.has(i);
+      g.classList.toggle("on", on);
+      g.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    $("count").textContent = pad(S.flags.size, 3);
+  }
+
+  // ---------- zoom ----------
+  const svg = d3.select("#board"), vp = d3.select("#vp");
+  const zoom = d3.zoom().scaleExtent([0.8, 6]).clickDistance(6).on("zoom", ev => vp.attr("transform", ev.transform));
+  svg.call(zoom).on("dblclick.zoom", null);
+  $("zin").onclick = () => svg.transition().duration(200).call(zoom.scaleBy, 1.5);
+  $("zout").onclick = () => svg.transition().duration(200).call(zoom.scaleBy, 1 / 1.5);
+  $("zfit").onclick = () => svg.transition().duration(250).call(zoom.transform, d3.zoomIdentity);
+
+  // ---------- clock ----------
+  const fmt = s => `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+  function start() {
+    S.phase = "play"; S.flags.clear(); S.left = PLAY_SECONDS; S.ring = -1;
+    $("memo").classList.add("compact"); $("startBtn").hidden = true; $("doneBtn").hidden = false;
+    $("hint").textContent = "Tap a circle to mark it. Close the file when you're done.";
+    $("resultPanel").hidden = true; $("ringPanel").hidden = true; $("playPanel").hidden = false;
+    $("stage").classList.remove("reveal", "dim");
+    syncFlags(); tick(); clearInterval(S.timer);
+    const t0 = Date.now();
+    S.timer = setInterval(() => {
+      S.left = Math.max(0, PLAY_SECONDS - Math.floor((Date.now() - t0) / 1000));
+      tick();
+      if (S.left === 0) finish();
+    }, 250);
+    snapshot();
+  }
+  function tick() {
+    $("clock").textContent = fmt(S.left);
+    $("clock").classList.toggle("low", S.phase === "play" && S.left <= 10);
+  }
+
+  // ---------- scoring ----------
+  function topK(key, n) {
+    return new Set(B.apps.map((a, i) => [a.s[key], i]).sort((p, q) => q[0] - p[0]).slice(0, n).map(p => p[1]));
+  }
+  function tally(set) {
+    let caught = 0;
+    set.forEach(i => { caught += B.apps[i].fraud; });
+    const rings = B.rings.map((r, ri) => {
+      const mem = B.apps.map((a, i) => [a, i]).filter(([a]) => a.ring === ri);
+      const hit = mem.filter(([, i]) => set.has(i)).length;
+      return hit * 2 >= mem.length;
+    });
+    return { caught, alarms: set.size - caught, rings };
+  }
+  const penMark = c => `<svg width="18" height="18" viewBox="-9 -9 18 18" aria-hidden="true"><circle r="6.6" fill="none" stroke="${c}" stroke-width="2.4"/><circle r="2.8" fill="${c}"/></svg>`;
+
+  function finish() {
+    clearInterval(S.timer);
+    S.phase = "reveal"; S.left = 0; tick();
+    $("doneBtn").hidden = true; $("startBtn").hidden = true;
+    $("hint").textContent = "File closed. The summary is beside the chart.";
+    $("playPanel").hidden = true; $("resultPanel").hidden = false; $("ringPanel").hidden = false;
+    const nFraud = B.apps.filter(a => a.fraud).length;
+    const played = S.flags.size > 0;
+    k = S.flags.size || nFraud;
+    picks = { you: new Set(S.flags), own: topK("own", k), hubs: topK("hubs", k), graph: topK("graph", k) };
+    const T = Object.fromEntries(Object.entries(picks).map(([p, s]) => [p, tally(s)]));
+    const nR = B.rings.length;
+    const ringsOf = p => T[p].rings.filter(Boolean).length;
+    const shown = PARTIES.filter(p => p.key !== "you" || played);
+
+    const lead = played ? ringsOf("you") : ringsOf("graph");
+    $("bigstamp").innerHTML = `${lead} of ${nR}<small>${played ? "rings found by you" : "rings, graph model"}</small>`;
+    $("headline").textContent = played
+      ? `The connection counter found ${ringsOf("hubs")}. The graph model found ${ringsOf("graph")}.`
+      : `You didn't mark anything. The connection counter found ${ringsOf("hubs")}.`;
+    $("budgetNote").textContent = played
+      ? `You marked ${k}. Every model got the same ${k} marks, placed on its ${k} highest-scoring applications. A ring counts as found when at least half its members are marked.`
+      : `Each model got ${k} marks, one per fraudulent application. A ring counts as found when at least half its members are marked.`;
+
+    $("score").innerHTML = shown.map(p => {
+      const t = T[p.key];
+      return `<tr class="party" tabindex="0" data-key="${p.key}" style="--c:${p.color}" title="${p.blurb || "your marks"}">
+        <td><span class="who">${penMark(p.color)}<span>${p.name}</span></span></td>
+        <td class="n">${ringsOf(p.key)}/${nR}</td><td class="n">${t.caught}/${nFraud}</td><td class="n">${t.alarms}</td></tr>`;
+    }).join("");
+    document.querySelectorAll("#score tr.party").forEach(tr => {
+      tr.onclick = () => setView(tr.dataset.key);
+      tr.onkeydown = ev => { if (ev.key === "Enter") setView(tr.dataset.key); };
+    });
+
+    $("views").innerHTML = [{ key: "truth", name: "Truth only" }, ...shown]
+      .map(v => `<button class="keybtn" data-key="${v.key}">${v.name}</button>`).join("");
+    document.querySelectorAll("#views button").forEach(b => { b.onclick = () => setView(b.dataset.key); });
+
+    $("rings").innerHTML = B.rings.map((r, ri) => {
+      const boxes = shown.map(p => `<span style="--c:${p.color}"><b>[${T[p.key].rings[ri] ? "x" : " "}]</b> ${p.name}</span>`).join("");
+      return `<li tabindex="0" data-ri="${ri}"><div class="rt"><span>${r.title}</span><span class="n">${r.size} applications</span></div><p>${r.story}</p><div class="boxes">${boxes}</div></li>`;
+    }).join("");
+    document.querySelectorAll("#rings li").forEach(li => {
+      const ri = +li.dataset.ri;
+      li.onclick = () => focusRing(ri);
+      li.onkeydown = ev => { if (ev.key === "Enter") focusRing(ri); };
+    });
+
+    const you = played ? `I found ${ringsOf("you")} of ${nR} rings` : `I didn't mark anyone`;
+    $("shareText").textContent = `Find the Ring, case ${pad(S.board + 1)}: ${you}. The connection counter found ${ringsOf("hubs")}. The graph model found ${ringsOf("graph")}.`;
+    $("stage").classList.add("reveal");
+    setView(played ? "you" : "graph");
+    snapshot();
+  }
+
+  function setView(key) {
+    S.view = key;
+    const p = PARTIES.find(q => q.key === key);
+    $("root").style.setProperty("--pick", p ? p.color : "var(--stamp)");
+    const set = key === "truth" ? new Set() : picks[key];
+    appEls.forEach((g, i) => g.classList.toggle("pick", set.has(i)));
+    document.querySelectorAll("#views button").forEach(b => b.setAttribute("aria-pressed", b.dataset.key === key));
+    document.querySelectorAll("#score tr.party").forEach(r => r.setAttribute("aria-pressed", r.dataset.key === key));
+  }
+
+  function focusRing(ri) {
+    const stage = $("stage");
+    const lis = [...document.querySelectorAll("#rings li")];
+    if (S.ring === ri) {
+      S.ring = -1; stage.classList.remove("dim");
+      lis.forEach(l => l.classList.remove("sel"));
+      return;
+    }
+    S.ring = ri;
+    stage.classList.add("dim");
+    lis.forEach((l, j) => l.classList.toggle("sel", j === ri));
+    const mem = new Set(B.apps.map((a, i) => a.ring === ri ? i : -1).filter(i => i >= 0));
+    const hubHits = new Map();
+    B.edges.forEach(([u, v, t]) => { if (t === 0 && mem.has(u)) hubHits.set(v, (hubHits.get(v) || 0) + 1); });
+    const litHubs = new Set([...hubHits].filter(([, c]) => c >= 2).map(([v]) => v));
+    B.edges.forEach(([u, v, t]) => { if (t === 1 && litHubs.has(u)) litHubs.add(v); });
+    appEls.forEach((g, i) => g.classList.toggle("lit", mem.has(i)));
+    hubEls.forEach((g, i) => g.classList.toggle("lit", litHubs.has(i)));
+    edgeEls.forEach(e => e.line.classList.toggle("lit",
+      (e.t === 0 && mem.has(e.u) && litHubs.has(e.v)) || (e.t === 1 && litHubs.has(e.u) && litHubs.has(e.v))));
+    $("stage").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });
+  }
+
+  // ---------- appendix ----------
+  function book() {
+    const A = D.audit, pr = A.pr;
+    const rows = [["own", "Row-by-row model", "var(--pencil)"], [A.best_baseline, "Connection counter", "var(--pen-blue)"],
+                  ["graph", "Graph model", "var(--pen-violet)"]];
+    $("bookLabel").textContent = `All ${A.n_apps.toLocaleString("en-US")} applications in the generated book`;
+    $("bookIntro").textContent = `${(100 * A.prevalence).toFixed(1)}% are labelled fraud. Each model ranked every application; PR-AUC scores that ranking from 0 to 1. Guessing scores about ${A.prevalence.toFixed(2)}, shown as the dashed line.`;
+    const x = v => (100 * v).toFixed(1) + "%";
+    $("book").innerHTML = rows.map(([m, n, c]) => `
+      <div class="r" style="--c:${c}"><span>${n}</span>
+        <span class="track"><b style="width:${x(pr[m])}"></b><s style="left:${x(A.prevalence)}"></s></span>
+        <span class="v">${pr[m].toFixed(3)}</span></div>`).join("") +
+      `<div class="axis"><span></span><div><span>0</span><span>0.5</span><span>1.0</span></div><span></span></div>`;
+    $("method").textContent = `The graph model beats the best model that never looks past an application's direct connections by ${A.lift >= 0 ? "+" : ""}${A.lift.toFixed(3)} ± ${A.lift_std.toFixed(3)} PR-AUC over ${A.seeds} seeds. Every score in the game is out-of-fold: the model that scored an application never trained on its ring or cluster. Rings in each case were drawn at random, not picked to suit any model. The graph model is graphlift's multi-hop propagation with gradient-boosted trees, not a trained GNN.`;
+  }
+
+  // ---------- controls ----------
+  function toIntro() {
+    clearInterval(S.timer);
+    S.flags.clear(); S.phase = "intro"; S.left = PLAY_SECONDS; S.ring = -1; tick();
+    $("memo").classList.remove("compact"); $("startBtn").hidden = false; $("doneBtn").hidden = true;
+    $("hint").textContent = "Tap a circle to mark it. Tap a square to see what's shared. Pinch or scroll to zoom.";
+    $("resultPanel").hidden = true; $("ringPanel").hidden = true; $("playPanel").hidden = false;
+    $("stage").classList.remove("reveal", "dim");
+    svg.call(zoom.transform, d3.zoomIdentity);
+  }
+  $("startBtn").onclick = start;
+  $("doneBtn").onclick = finish;
+  $("againBtn").onclick = () => { buildBoard(); start(); };
+  $("nextBtn").onclick = () => {
+    S.board = (S.board + 1) % D.boards.length;
+    buildBoard(); toIntro();
+    $("root").scrollIntoView({ block: "start" });
+    snapshot();
+  };
+  $("copyBtn").onclick = () => {
+    const txt = $("shareText").textContent;
+    const done = m => { $("toast").textContent = m; setTimeout(() => { $("toast").textContent = ""; }, 2200); };
+    const fallback = () => {
+      const r = document.createRange(); r.selectNodeContents($("shareText"));
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      done("Selected. Copy it with your keyboard.");
+    };
+    try { navigator.clipboard.writeText(txt).then(() => done("Copied"), fallback); } catch (e) { fallback(); }
+  };
+
+  // ---------- live-update hook ----------
+  function snapshot() {
+    window.claude?.hot?.snapshot?.(() => ({ board: S.board, phase: S.phase, flags: [...S.flags] }));
+  }
+  function boot(saved) {
+    if (saved && Number.isInteger(saved.board) && saved.board < D.boards.length) S.board = saved.board;
+    buildBoard(); book(); tick();
+    if (saved && saved.phase === "reveal") {
+      (saved.flags || []).forEach(i => S.flags.add(i));
+      $("memo").classList.add("compact"); $("startBtn").hidden = true;
+      syncFlags(); finish();
+    }
+  }
+  window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});
+})();
+</script>

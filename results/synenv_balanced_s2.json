@@ -1,0 +1,313 @@
+{
+  "dataset": {
+    "name": "Syn Env (balanced, seed 2)",
+    "target": "application",
+    "n_targets": 2820,
+    "n_positive": 728,
+    "prevalence": 0.2581560283687943,
+    "node_types": {
+      "address": 3897,
+      "application": 2820,
+      "bank": 2315,
+      "business": 1310,
+      "device": 2380,
+      "document": 4279,
+      "email": 2390,
+      "employee": 22,
+      "ip": 2380,
+      "person": 2640,
+      "phone": 2640,
+      "transaction": 1775
+    },
+    "n_edges": 33727,
+    "relations": [
+      "activity",
+      "applies_for",
+      "disburses_to",
+      "employed_by",
+      "has_email",
+      "has_phone",
+      "includes_document",
+      "operates",
+      "owns",
+      "processed",
+      "registered_at",
+      "resides_at",
+      "routes_through",
+      "submits",
+      "transfers_to",
+      "uses_device"
+    ]
+  },
+  "groups": {
+    "n_components": 13,
+    "largest_component_share": 0.9939716312056738,
+    "source": "declared column `group`",
+    "n_groups": 839,
+    "largest_group": 21,
+    "singleton_share": 0.1049645390070922
+  },
+  "split_exposure": {
+    "test_touches_train": 0.9246931813354707,
+    "test_touches_train_positive": 0.5952712611527825
+  },
+  "attributes": [
+    {
+      "attribute": "application.fraud_true",
+      "auc": 0.938,
+      "via": "own column",
+      "excluded": true,
+      "flag": true
+    },
+    {
+      "attribute": "document.is_forged",
+      "auc": 0.703,
+      "via": "max over 1-hop document",
+      "excluded": true,
+      "flag": false
+    },
+    {
+      "attribute": "bank.is_mule",
+      "auc": 0.582,
+      "via": "max over 1-hop bank",
+      "excluded": true,
+      "flag": false
+    },
+    {
+      "attribute": "transaction.is_laundering",
+      "auc": 0.555,
+      "via": "max over 2-hop transaction",
+      "excluded": true,
+      "flag": false
+    },
+    {
+      "attribute": "device.fraud_count",
+      "auc": 0.547,
+      "via": "max over 1-hop device",
+      "excluded": true,
+      "flag": false
+    },
+    {
+      "attribute": "employee.prior_fraud_flags",
+      "auc": 0.509,
+      "via": "max over 2-hop employee",
+      "excluded": true,
+      "flag": false
+    },
+    {
+      "attribute": "employee.is_corrupt",
+      "auc": 0.509,
+      "via": "max over 2-hop employee",
+      "excluded": true,
+      "flag": false
+    },
+    {
+      "attribute": "application.is_sme",
+      "auc": 0.723,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "address.addr_type",
+      "auc": 0.723,
+      "via": "max over 2-hop address",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "document.font_inconsistency",
+      "auc": 0.697,
+      "via": "max over 1-hop document",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "business.n_employees",
+      "auc": 0.667,
+      "via": "max over 2-hop business",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "business.annual_revenue",
+      "auc": 0.661,
+      "via": "max over 2-hop business",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "business.business_age_years",
+      "auc": 0.63,
+      "via": "max over 2-hop business",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "address.postal",
+      "auc": 0.592,
+      "via": "max over 2-hop address",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "bank.avg_balance",
+      "auc": 0.576,
+      "via": "min over 1-hop bank",
+      "excluded": false,
+      "flag": false
+    }
+  ],
+  "metrics": {
+    "own": {
+      "pr_auc_mean": 0.46578717453342633,
+      "pr_auc_std": 0.011152667644695989,
+      "roc_auc_mean": 0.7406321570399008,
+      "roc_auc_std": 0.0031529935009177554,
+      "pr_auc_seeds": [
+        0.4604845289597729,
+        0.4813025734950016,
+        0.4555744211455045
+      ]
+    },
+    "hubs": {
+      "pr_auc_mean": 0.6594926332486596,
+      "pr_auc_std": 0.007041745672991235,
+      "roc_auc_mean": 0.8669270997485626,
+      "roc_auc_std": 0.0004997427246699368,
+      "pr_auc_seeds": [
+        0.6631753164622622,
+        0.6496383236245864,
+        0.6656642596591303
+      ]
+    },
+    "own+hubs": {
+      "pr_auc_mean": 0.6524607934215797,
+      "pr_auc_std": 0.004441532446779177,
+      "roc_auc_mean": 0.8693564442249911,
+      "roc_auc_std": 0.0014762926111932943,
+      "pr_auc_seeds": [
+        0.6587401477298891,
+        0.6491865881412746,
+        0.6494556443935754
+      ]
+    },
+    "graph": {
+      "pr_auc_mean": 0.7378400599977485,
+      "pr_auc_std": 0.007410130813017389,
+      "roc_auc_mean": 0.8996156209946841,
+      "roc_auc_std": 0.001700740013231623,
+      "pr_auc_seeds": [
+        0.7280455048988005,
+        0.7395100978893576,
+        0.7459645772050877
+      ]
+    }
+  },
+  "lift": {
+    "best_baseline": "hubs",
+    "pr_auc_lift_mean": 0.07834742674908894,
+    "pr_auc_lift_std": 0.0102998433751844,
+    "seeds_positive": 3,
+    "n_seeds": 3,
+    "prevalence": 0.2581560283687943,
+    "graph_over_baseline_ratio": 1.1187995480148878
+  },
+  "verdict": "graph helps",
+  "random_split": {
+    "pr_auc": {
+      "hubs": 0.7084732098949744,
+      "graph": 0.748510280255827
+    },
+    "grouped_pr_auc": {
+      "hubs": 0.6594926332486596,
+      "graph": 0.7378400599977485
+    },
+    "test_touches_train_positive": 0.7667407350442547
+  },
+  "breakdown": {
+    "money_mule": {
+      "n": 125,
+      "own": 0.528,
+      "hubs": 0.896,
+      "own+hubs": 0.92,
+      "graph": 0.944
+    },
+    "device_farm": {
+      "n": 106,
+      "own": 0.5660377358490566,
+      "hubs": 0.6415094339622641,
+      "own+hubs": 0.660377358490566,
+      "graph": 0.660377358490566
+    },
+    "loan_stacking": {
+      "n": 101,
+      "own": 0.26732673267326734,
+      "hubs": 0.5544554455445545,
+      "own+hubs": 0.6039603960396039,
+      "graph": 0.5643564356435643
+    },
+    "identity_match": {
+      "n": 91,
+      "own": 0.5714285714285714,
+      "hubs": 0.7692307692307693,
+      "own+hubs": 0.7802197802197802,
+      "graph": 0.7912087912087912
+    },
+    "phantom_employer": {
+      "n": 86,
+      "own": 0.5581395348837209,
+      "hubs": 0.5581395348837209,
+      "own+hubs": 0.45348837209302323,
+      "graph": 0.6395348837209303
+    },
+    "document_reuse": {
+      "n": 79,
+      "own": 0.6075949367088608,
+      "hubs": 0.6835443037974683,
+      "own+hubs": 0.6329113924050633,
+      "graph": 0.8860759493670886
+    },
+    "shell_company": {
+      "n": 44,
+      "own": 0.06818181818181818,
+      "hubs": 0.6363636363636364,
+      "own+hubs": 0.6590909090909091,
+      "graph": 0.9090909090909091
+    },
+    "nested_mule": {
+      "n": 38,
+      "own": 0.5,
+      "hubs": 0.9210526315789473,
+      "own+hubs": 0.9210526315789473,
+      "graph": 0.9473684210526315
+    },
+    "legit": {
+      "n": 36,
+      "own": 0.16666666666666666,
+      "hubs": 0.1388888888888889,
+      "own+hubs": 0.08333333333333333,
+      "graph": 0.05555555555555555
+    },
+    "collusion": {
+      "n": 22,
+      "own": 0.6818181818181818,
+      "hubs": 0.6818181818181818,
+      "own+hubs": 0.6818181818181818,
+      "graph": 0.7727272727272727
+    }
+  },
+  "feature_counts": {
+    "own": 56,
+    "hubs": 72,
+    "hub_paths": 18,
+    "propagated": 144
+  },
+  "settings": {
+    "seeds": 3,
+    "folds": 5,
+    "hops": 3,
+    "dim": 48
+  },
+  "seconds": 239.71262502670288
+}
