@@ -23,7 +23,8 @@
     "n_groups": 8639,
     "largest_group": 1,
     "singleton_share": 1.0,
-    "warning": "Over half the targets sit in one connected component, so no split can keep connected targets apart and the split falls back to individual targets, as most published results on this kind of graph do. Treat absolute scores as optimistic; the comparison between models stays fair because every model sees the same split."
+    "warning": "Over half the targets sit in one connected component, so no split can keep connected targets apart and the split falls back to individual targets, as most published results on this kind of graph do. Treat absolute scores as optimistic; the comparison between models stays fair because every model sees the same split.",
+    "split": "grouped 5-fold by individual targets (no leak-free grouping exists), 3 seeds"
   },
   "split_exposure": {
     "test_touches_train": 1.0,
@@ -89,72 +90,111 @@
   ],
   "metrics": {
     "own": {
-      "pr_auc_mean": 0.9145046636823309,
-      "pr_auc_std": 0.001346533793194354,
-      "roc_auc_mean": 0.9808992479850418,
-      "roc_auc_std": 0.0008097774511740427,
+      "pr_auc_mean": 0.9149161175758685,
+      "pr_auc_std": 0.0017031248080053222,
+      "roc_auc_mean": 0.9811265568998824,
+      "roc_auc_std": 0.00022114282883611787,
       "pr_auc_seeds": [
-        0.9137599304507008,
-        0.9163948442507108,
-        0.9133592163455808
+        0.9155615149180096,
+        0.9166030327658501,
+        0.9125838050437459
       ]
     },
     "hubs": {
-      "pr_auc_mean": 0.5008850373142417,
-      "pr_auc_std": 0.002839132455607337,
-      "roc_auc_mean": 0.8482523179848663,
-      "roc_auc_std": 0.00389611117001482,
+      "pr_auc_mean": 0.5015721783697086,
+      "pr_auc_std": 0.005388055496125192,
+      "roc_auc_mean": 0.8477734995716081,
+      "roc_auc_std": 0.004132150235073368,
       "pr_auc_seeds": [
-        0.5044164112946038,
-        0.4974646424921941,
-        0.5007740581559271
+        0.5083093093239581,
+        0.495120592794862,
+        0.5012866329903053
       ]
     },
     "own+hubs": {
-      "pr_auc_mean": 0.934758778152018,
-      "pr_auc_std": 0.0008902274082138402,
-      "roc_auc_mean": 0.9857540616213333,
-      "roc_auc_std": 0.0004612990820905618,
+      "pr_auc_mean": 0.9345461998812148,
+      "pr_auc_std": 0.0007451695940223716,
+      "roc_auc_mean": 0.9856014836931172,
+      "roc_auc_std": 0.0004947603234157081,
       "pr_auc_seeds": [
-        0.934291682766035,
-        0.9360048097623128,
-        0.9339798419277063
+        0.9346280472668249,
+        0.9354151620822913,
+        0.933595390294528
       ]
     },
     "graph": {
-      "pr_auc_mean": 0.9400115462270305,
-      "pr_auc_std": 0.0010637612239666548,
-      "roc_auc_mean": 0.9873847966532981,
-      "roc_auc_std": 0.0006411416169928513,
+      "pr_auc_mean": 0.9406738879675336,
+      "pr_auc_std": 0.0013710328717934284,
+      "roc_auc_mean": 0.9875393999522428,
+      "roc_auc_std": 0.00042202735969016497,
       "pr_auc_seeds": [
-        0.9388310152850006,
-        0.9414093647511664,
-        0.9397942586449245
+        0.9391269454367047,
+        0.9424596948038146,
+        0.9404350236620816
+      ]
+    },
+    "gnn": {
+      "pr_auc_mean": 0.9098428957724943,
+      "pr_auc_std": 0.0034327858740249018,
+      "roc_auc_mean": 0.9763954466757797,
+      "roc_auc_std": 0.00010949608540516793,
+      "pr_auc_seeds": [
+        0.9102303881447751,
+        0.9054582767021657,
+        0.9138400224705425
       ]
     }
   },
   "lift": {
     "best_baseline": "own+hubs",
-    "pr_auc_lift_mean": 0.005252768075012441,
-    "pr_auc_lift_std": 0.0005315006293934511,
+    "pr_auc_lift_mean": 0.006127688086318954,
+    "pr_auc_lift_std": 0.0011547621343043443,
     "seeds_positive": 3,
     "n_seeds": 3,
+    "uncertainty": "seeds",
+    "boot_std": 0.0031728524337943926,
+    "boot_positive_share": 0.985,
+    "boot_ci95": [
+      0.000988096051996018,
+      0.013097276799423975
+    ],
+    "n_boot": 200,
     "prevalence": 0.09503414747077207,
-    "graph_over_baseline_ratio": 1.0056193835220215
+    "graph_over_baseline_ratio": 1.0065568594544578,
+    "verdict": "graph is decorative"
   },
   "verdict": "graph is decorative",
   "random_split": {
     "pr_auc": {
-      "own+hubs": 0.932873333365235,
-      "graph": 0.940810002352803
+      "own+hubs": 0.9331607631743974,
+      "graph": 0.9410278523164003
     },
-    "grouped_pr_auc": {
-      "own+hubs": 0.934758778152018,
-      "graph": 0.9400115462270305
+    "split_pr_auc": {
+      "own+hubs": 0.9345461998812148,
+      "graph": 0.9406738879675336
     },
     "test_touches_train_positive": 0.962147036526251
   },
   "breakdown": {},
+  "by_time": {},
+  "gnn_lift": {
+    "best_baseline": "own+hubs",
+    "pr_auc_lift_mean": -0.024703304108720275,
+    "pr_auc_lift_std": 0.004170356040393203,
+    "seeds_positive": 0,
+    "n_seeds": 3,
+    "uncertainty": "seeds",
+    "boot_std": 0.007315324345562347,
+    "boot_positive_share": 0.0,
+    "boot_ci95": [
+      -0.03402782857482875,
+      -0.005592473476600516
+    ],
+    "n_boot": 200,
+    "prevalence": 0.09503414747077207,
+    "graph_over_baseline_ratio": 0.9735665244673186,
+    "verdict": "graph hurts"
+  },
   "feature_counts": {
     "own": 25,
     "hubs": 6,
@@ -165,7 +205,10 @@
     "seeds": 3,
     "folds": 5,
     "hops": 3,
-    "dim": 48
+    "dim": 48,
+    "split": "grouped",
+    "gnn": true,
+    "gnn_epochs": 300
   },
-  "seconds": 323.78885316848755
+  "seconds": 1852.6303534507751
 }

@@ -8,3 +8,5 @@ data/
 dist/
 build/
 raw/
+graphlift_gpu_results.zip
+results_gpu_tmp/

@@ -16,10 +16,10 @@ connected cases together where the graph allows it, and reports the gap.
 | Dataset | Split | Labelled | Fraud | Own attributes | Best non-graph | Graph (propagation) | Lift | GraphSAGE | GraphSAGE lift |
 |---|---|---|---|---|---|---|---|---|---|
 | Syn Env (synthetic SME loans) | grouped by ring | 2,820 | 25.8% | 0.466 | 0.659 | **0.737** | **+0.078** ± 0.012 | **0.738** | **+0.078** ± 0.007 |
-| YelpChi (spam reviews) | random | 45,954 | 14.5% | 0.841 | 0.879 | **0.913** | **+0.034** ± 0.001 | pending | pending |
+| YelpChi (spam reviews) | random | 45,954 | 14.5% | 0.842 | 0.879 | **0.913** | **+0.034** ± 0.001 | 0.784 | −0.095 ± 0.004 |
 | Elliptic (illicit Bitcoin), local features | past → future | 46,564 | 9.8% | 0.790 | 0.790 | **0.811** | **+0.021** ± 0.003 | 0.555 | −0.234 ± 0.014 |
 | Elliptic, all features | past → future | 46,564 | 9.8% | 0.807 | 0.807 | 0.817 | +0.010 ± 0.002 | 0.379 | −0.428 ± 0.012 |
-| Amazon (fraudulent users) | random | 8,639 | 9.5% | 0.915 | 0.935 | 0.940 | +0.005 ± 0.001 | pending | pending |
+| Amazon (fraudulent users) | random | 8,639 | 9.5% | 0.915 | 0.935 | 0.941 | +0.006 ± 0.001 | 0.910 | −0.025 ± 0.004 |
 
 PR-AUC. *Best non-graph* is the strongest model that never passes a message: own
 attributes, counts of neighbours and shared entities, or both. *Graph
@@ -27,8 +27,7 @@ attributes, counts of neighbours and shared entities, or both. *Graph
 gradient-boosted trees; *GraphSAGE* is a GNN trained end to end. Each *lift* is
 that model minus the best non-graph model; ± is the spread over 3 seeds, or over
 200 paired bootstrap resamples of the test set for the past → future split.
-GraphSAGE on YelpChi and Amazon is pending a GPU run
-([run it free on Colab](https://colab.research.google.com/github/RhysMiranda/graphlift/blob/main/notebooks/graphlift_gpu_colab.ipynb)). Full reports in
+GraphSAGE runs on a GPU ([reproduce on Colab](https://colab.research.google.com/github/RhysMiranda/graphlift/blob/main/notebooks/graphlift_gpu_colab.ipynb)). Full reports in
 [`results/`](https://github.com/RhysMiranda/graphlift/tree/main/results/), auto-generated table in [`results/INDEX.md`](https://github.com/RhysMiranda/graphlift/blob/main/results/INDEX.md).
 
 **What it shows so far**
@@ -54,7 +53,9 @@ GraphSAGE on YelpChi and Amazon is pending a GPU run
   0.367 with message passing switched off (a plain MLP) and 0.464 with one layer
   of it, so message passing is helping the neural model; what fails is neural networks on these features
   when the future looks different from the past. Gradient-boosted trees hold up
-  much better.
+  much better. On YelpChi and Amazon GraphSAGE also trails the trees (0.784
+  against 0.913, and 0.910 against 0.941), though it beats GADBench's published
+  GraphSAGE on both (46.6 and 82.5).
 - **Every model fails when the world changes.** On Elliptic, PR-AUC falls from
   about 0.9 to under 0.3 from time step 43, the dark-market shutdown described
   in the dataset's original paper (Weber et al., 2019), and the graph does not
@@ -201,7 +202,7 @@ takes that result as its starting point rather than its claim. What it adds:
 - [x] Elliptic, with past → future splits and bootstrap uncertainty
 - [ ] Loaders: IBM AMLworld, DGraph-Fin, T-Finance
 - [x] Optional GraphSAGE rung (plain PyTorch, GPU when available)
-- [ ] GraphSAGE on YelpChi and Amazon (GPU run)
+- [x] GraphSAGE on YelpChi and Amazon (GPU run)
 - [ ] The Graph Lift Index: one table across every public fraud graph
 - [ ] PyPI release (package and release workflow ready)
 
