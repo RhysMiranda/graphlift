@@ -74,28 +74,32 @@ class _Graph:
                 torch.tensor(np.vstack([rows, m.indices]), dtype=torch.long),
                 torch.tensor(vals), size=m.shape, device=device,
                 check_invariants=True).coalesce()   # indices come from a valid CSR
+            # Edge lists live on the device, so sampling never leaves the GPU.
             self.rels.append({"name": r.name, "src": r.src, "dst": r.dst, "mean": mean,
-                              "indptr": m.indptr, "indices": m.indices, "deg": deg})
+                              "max_deg": int(deg.max()),
+                              "rows": torch.tensor(rows, dtype=torch.long, device=device),
+                              "cols": torch.tensor(m.indices, dtype=torch.long, device=device),
+                              "start": torch.tensor(m.indptr[:-1], dtype=torch.long, device=device)})
         self.device = device
 
-    def sample(self, rng: np.random.Generator, cap: int) -> list:
-        """(row, col) index tensors per relation, at most `cap` neighbours per row."""
+    def sample(self, gen: "torch.Generator", cap: int) -> list:
+        """(row, col) index tensors per relation, at most `cap` neighbours per row,
+        drawn uniformly without replacement, entirely on the device.
+
+        Each edge gets the key row + U(0,1). Sorting the keys keeps rows in order
+        and shuffles edges within each row; an edge's rank within its row is its
+        sorted position minus the row's start, and the first `cap` are kept."""
         out = []
         for r in self.rels:
-            deg, ptr, idx = r["deg"], r["indptr"], r["indices"]
-            rows_all = r.setdefault("rows_all", np.repeat(np.arange(len(deg)), deg))
-            if deg.max() <= cap:
-                rows, cols = rows_all, idx
-            else:
-                # Random key per edge; keep each row's `cap` smallest keys. Rows are
-                # already contiguous in CSR order, so a stable sort on the key
-                # within rows gives a uniform sample without replacement.
-                order = np.lexsort((rng.random(len(idx)), rows_all))
-                rank = np.arange(len(idx)) - ptr[:-1][rows_all]
+            rows, cols = r["rows"], r["cols"]
+            if r["max_deg"] > cap:
+                key = rows.to(torch.float64) + torch.rand(len(rows), generator=gen, device=rows.device,
+                                                          dtype=torch.float64)
+                order = torch.argsort(key)
+                rank = torch.arange(len(rows), device=rows.device) - r["start"][rows]
                 keep = order[rank < cap]
-                rows, cols = rows_all[keep], idx[keep]
-            out.append((torch.tensor(rows, dtype=torch.long, device=self.device),
-                        torch.tensor(cols, dtype=torch.long, device=self.device)))
+                rows, cols = rows[keep], cols[keep]
+            out.append((rows, cols))
         return out
 
 
@@ -175,13 +179,14 @@ def predict(g: GraphData, splits: list, seed: int, lab_idx: np.ndarray, y: np.nd
         opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
         pos = max(float(y[tr_i].sum()), 1.0)
         w = torch.tensor((len(tr_i) - pos) / pos, device=device)
-        eval_sample = G.sample(np.random.default_rng(12345), max_sample)
+        gen = torch.Generator(device=device).manual_seed(seed * 1000 + fi)
+        eval_sample = G.sample(torch.Generator(device=device).manual_seed(12345), max_sample)
         best, best_state, since = -1.0, None, 0
         tr_t = torch.tensor(tr_i, device=device)
         for ep in range(1, epochs + 1):
             model.train()
             opt.zero_grad()
-            logit = model(G.sample(rng, max_sample))[tgt_idx[tr_t]]
+            logit = model(G.sample(gen, max_sample))[tgt_idx[tr_t]]
             loss = F.binary_cross_entropy_with_logits(logit, yt[tr_t], pos_weight=w)
             loss.backward()
             opt.step()
