@@ -27,7 +27,8 @@ attributes, counts of neighbours and shared entities, or both. *Graph
 gradient-boosted trees; *GraphSAGE* is a GNN trained end to end. Each *lift* is
 that model minus the best non-graph model; ± is the spread over 3 seeds, or over
 200 paired bootstrap resamples of the test set for the past → future split.
-GraphSAGE on YelpChi and Amazon is pending a GPU run. Full reports in
+GraphSAGE on YelpChi and Amazon is pending a GPU run
+([run it free on Colab](https://colab.research.google.com/github/RhysMiranda/graphlift/blob/main/notebooks/graphlift_gpu_colab.ipynb)). Full reports in
 [`results/`](https://github.com/RhysMiranda/graphlift/tree/main/results/), auto-generated table in [`results/INDEX.md`](https://github.com/RhysMiranda/graphlift/blob/main/results/INDEX.md).
 
 **What it shows so far**
