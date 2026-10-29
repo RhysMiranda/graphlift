@@ -42,9 +42,15 @@ def test_graph_helps_when_signal_is_in_the_neighbourhood(tmp_path):
 
 
 def test_nothing_to_find_when_labels_are_random(tmp_path):
-    g = load_dir(str(_write(tmp_path, structured=False)))
-    r = audit.run(g, seeds=2, folds=3, hops=2, dim=8, verbose=False)
-    assert r.verdict != "graph helps"
+    # Random labels: no model can genuinely gain from the graph, so a "helps"
+    # verdict on any of these is a false positive. Small data makes chance gains
+    # of a few points common, which is what the group resampling guards against.
+    for seed in range(3):
+        d = tmp_path / f"s{seed}"
+        g = load_dir(str(_write(d, structured=False, seed=seed)))
+        r = audit.run(g, seeds=2, folds=3, hops=2, dim=8, verbose=False)
+        assert r.verdict != "graph helps", (seed, r.lift)
+        assert "boot_ci95" in r.lift
 
 
 def test_direct_links_and_unlabelled_targets(tmp_path):

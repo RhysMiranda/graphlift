@@ -20,7 +20,10 @@ def _lift_text(L: dict) -> str:
             + (f"(positive in {100 * L['seeds_positive'] / L['n_seeds']:.0f}% of {L['n_seeds']} paired "
                "bootstrap resamples of the test set). "
                if L.get("uncertainty") == "bootstrap" else
-               f"({L['seeds_positive']} of {L['n_seeds']} seeds positive). "))
+               f"({L['seeds_positive']} of {L['n_seeds']} seeds positive"
+               + (f"; 95% interval [{L['boot_ci95'][0]:+.3f}, {L['boot_ci95'][1]:+.3f}] from "
+                  f"{L['n_boot']} resamples of the groups" if "boot_ci95" in L else "")
+               + "). "))
 
 
 def to_json(r: AuditResult, path: str) -> None:

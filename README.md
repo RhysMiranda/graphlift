@@ -135,8 +135,12 @@ graphlift.json      what to classify and which columns are off limits
 
 1. **The ladder.** Four gradient-boosted models, each seeing more than the last:
    own attributes, shared-entity counts, both, then the graph. Lift is the graph
-   minus the best of the other three, with its spread across seeds and a verdict:
-   *graph helps*, *graph is decorative*, or *graph hurts*.
+   minus the best of the other three, with a verdict: *graph helps*, *graph is
+   decorative*, or *graph hurts*. A verdict either way needs a gain of at least
+   0.01 PR-AUC that is clear of two kinds of noise: re-running the split with
+   new seeds, and resampling the groups themselves (200 resamples, 95% of them
+   pointing the same way). On random labels this keeps false "helps" verdicts
+   at zero in 20 trials.
 2. **Split honesty.** How many test nodes still touch a training node, or a
    training positive, through a shared entity or a direct link, and how much a
    careless random split would have inflated each score. Past → future splits

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "graphlift"
-version = "1.0.0"
+version = "1.0.1"
 description = "Does your graph actually help? An audit for graph machine learning datasets."
 readme = "README.md"
 license = "MIT"

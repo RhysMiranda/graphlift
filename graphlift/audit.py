@@ -201,11 +201,36 @@ def run(g: GraphData, seeds: int = 3, folds: int = 5, hops: int = 3, dim: int = 
                    for m, v in per_seed.items()}
         best = max(BASELINES, key=lambda m: metrics[m]["pr_auc_mean"])
 
+        # Repeating the split only measures how much the score depends on which
+        # fold each group lands in. Resampling the groups themselves measures how
+        # much it depends on which cases happen to be in the data, which is what
+        # matters on a small dataset. Both must agree before the graph "helps".
+        mean_oof = {m: oof_sum[m] / n_runs for m in run_models}
+        g_codes = np.unique(groups, return_inverse=True)[1]
+        order = np.argsort(g_codes, kind="stable")
+        starts = np.searchsorted(g_codes[order], np.arange(g_codes.max() + 1))
+        sizes = np.diff(np.append(starts, len(order)))
+        rng_b = np.random.default_rng(0)
+        boots = {m: [] for m in run_models}
+        for _ in range(200):
+            pick = rng_b.integers(0, len(starts), len(starts))
+            idx = np.repeat(starts[pick], sizes[pick]) + (
+                np.arange(sizes[pick].sum()) - np.repeat(np.cumsum(sizes[pick]) - sizes[pick], sizes[pick]))
+            idx = order[idx]
+            if 0 < y[idx].sum() < len(idx):
+                for m in run_models:
+                    boots[m].append(average_precision_score(y[idx], mean_oof[m][idx]))
+
         def lift_of(m):
             lifts = np.array(per_seed[m]["pr"]) - np.array(per_seed[best]["pr"])
+            diffs = np.array(boots[m]) - np.array(boots[best])
             return {"best_baseline": best, "pr_auc_lift_mean": float(lifts.mean()),
                     "pr_auc_lift_std": float(lifts.std()), "seeds_positive": int((lifts > 0).sum()),
-                    "n_seeds": seeds, "uncertainty": "seeds"}
+                    "n_seeds": seeds, "uncertainty": "seeds",
+                    "boot_std": float(diffs.std()),
+                    "boot_positive_share": float((diffs > 0).mean()),
+                    "boot_ci95": [float(np.quantile(diffs, 0.025)), float(np.quantile(diffs, 0.975))],
+                    "n_boot": int(len(diffs))}
 
     def finish(lf, m):
         lf.update(prevalence=float(y[ev].mean()),
@@ -263,12 +288,20 @@ def run(g: GraphData, seeds: int = 3, folds: int = 5, hops: int = 3, dim: int = 
 
 
 def _verdict(lift: dict) -> str:
-    m, s = lift["pr_auc_lift_mean"], lift["pr_auc_lift_std"]
-    consistent = lift["seeds_positive"] >= (0.95 * lift["n_seeds"] if lift.get("uncertainty") == "bootstrap"
-                                            else lift["n_seeds"])
-    if m > max(2 * s, 0.01) and consistent:
+    """A verdict needs a gain of at least 0.01 PR-AUC that is clear of both kinds
+    of noise: re-splitting (seeds) and resampling the data (bootstrap)."""
+    m = lift["pr_auc_lift_mean"]
+    if lift.get("uncertainty") == "bootstrap":          # temporal: bootstrap is all there is
+        s, up = lift["pr_auc_lift_std"], lift["seeds_positive"] / max(lift["n_seeds"], 1)
+        seeds_agree_up = seeds_agree_down = True
+    else:
+        s = max(lift["pr_auc_lift_std"], lift.get("boot_std", 0.0))
+        up = lift.get("boot_positive_share", 1.0)
+        seeds_agree_up = lift["seeds_positive"] == lift["n_seeds"]
+        seeds_agree_down = lift["seeds_positive"] == 0
+    if m > max(2 * s, 0.01) and up >= 0.95 and seeds_agree_up:
         return "graph helps"
-    if m < -max(2 * s, 0.01):
+    if m < -max(2 * s, 0.01) and up <= 0.05 and seeds_agree_down:
         return "graph hurts"
     return "graph is decorative"
 
