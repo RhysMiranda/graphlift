@@ -13,24 +13,55 @@ connected cases together where the graph allows it, and reports the gap.
 
 ## The Graph Lift Index
 
-| Dataset | Labelled | Fraud | Own attributes | Best non-graph | Graph | Lift | Gain already in counts | Verdict |
-|---|---|---|---|---|---|---|---|---|
-| Syn Env (synthetic SME loans) | 2,820 | 25.8% | 0.466 | 0.659 | **0.737** | **+0.078** ± 0.012 | 71% | graph helps |
-| YelpChi (spam reviews) | 45,954 | 14.5% | 0.841 | 0.879 | **0.913** | **+0.034** ± 0.001 | 53% | graph helps |
-| Amazon (fraudulent users) | 8,639 | 9.5% | 0.915 | 0.935 | 0.940 | +0.005 ± 0.001 | 79% | graph is decorative |
+| Dataset | Split | Labelled | Fraud | Own attributes | Best non-graph | Graph (propagation) | Lift | GraphSAGE | GraphSAGE lift |
+|---|---|---|---|---|---|---|---|---|---|
+| Syn Env (synthetic SME loans) | grouped by ring | 2,820 | 25.8% | 0.466 | 0.659 | **0.737** | **+0.078** ± 0.012 | **0.738** | **+0.078** ± 0.007 |
+| YelpChi (spam reviews) | random | 45,954 | 14.5% | 0.841 | 0.879 | **0.913** | **+0.034** ± 0.001 | pending | pending |
+| Elliptic (illicit Bitcoin), local features | past → future | 46,564 | 9.8% | 0.790 | 0.790 | **0.811** | **+0.021** ± 0.003 | 0.555 | −0.234 ± 0.014 |
+| Elliptic, all features | past → future | 46,564 | 9.8% | 0.807 | 0.807 | 0.817 | +0.010 ± 0.002 | 0.379 | −0.428 ± 0.012 |
+| Amazon (fraudulent users) | random | 8,639 | 9.5% | 0.915 | 0.935 | 0.940 | +0.005 ± 0.001 | pending | pending |
 
-PR-AUC, out-of-fold, mean ± std over 3 seeds. *Best non-graph* is the strongest
-model that never passes a message. *Gain already in counts* is how much of the
-graph model's improvement over own attributes a model gets from neighbour and
-shared-entity counts alone. Full table: [`results/INDEX.md`](results/INDEX.md).
+PR-AUC. *Best non-graph* is the strongest model that never passes a message: own
+attributes, counts of neighbours and shared entities, or both. *Graph
+(propagation)* feeds multi-hop neighbourhood summaries to the same
+gradient-boosted trees; *GraphSAGE* is a GNN trained end to end. Each *lift* is
+that model minus the best non-graph model; ± is the spread over 3 seeds, or over
+200 paired bootstrap resamples of the test set for the past → future split.
+GraphSAGE on YelpChi and Amazon is pending a GPU run. Full reports in
+[`results/`](https://github.com/RhysMiranda/graphlift/tree/main/results/), auto-generated table in [`results/INDEX.md`](https://github.com/RhysMiranda/graphlift/blob/main/results/INDEX.md).
 
-**What it shows so far:** on every dataset, most of what "the graph" adds over a
-node's own attributes is a handful of counts. On Amazon that is nearly all of
-it. YelpChi is the clearer case where message passing earns its place, and
-even there counts deliver half the gain. The graph scores here match or exceed
-are in line with the best published tree-plus-neighbours model on both
-benchmarks (GADBench reports 91.1 on YelpChi and 93.3 on Amazon, under its own
-split), so the graph rung is not a strawman.
+**What it shows so far**
+
+- **Most of a graph's value is cheap to get.** On Syn Env, YelpChi and Amazon,
+  between half and four-fifths of what the graph model adds over a node's own
+  attributes comes from simple neighbour and shared-entity counts. On Amazon
+  that leaves almost nothing for message passing.
+- **Pre-computed neighbour features close most of the gap.** Elliptic ships 72
+  columns summarising each transaction's neighbours. With them, the non-graph
+  model rises from 0.790 to 0.807, which is 81% of the 0.021 the graph model
+  found on local features alone, and the remaining lift drops to +0.010.
+- **The split matters more than the model.** On Elliptic, the same models score
+  0.983 under a random split and 0.790 when trained on the past and tested on
+  the future. That gap is more than twice the largest graph lift in the table.
+  It is not graph leakage: only 4% of random-split test transactions link to a
+  training fraud.
+- **A trained GNN is not automatically the best graph model.** On Syn Env,
+  GraphSAGE and the tree-based propagation model land on the same lift
+  (+0.078), two very different methods agreeing that the structure carries real
+  signal. On Elliptic's past → future split, GraphSAGE falls far below every
+  tree model (0.555 against 0.790 on local features). The same network scores
+  0.367 with message passing switched off (a plain MLP) and 0.464 with one layer
+  of it, so message passing is helping the neural model; what fails is neural networks on these features
+  when the future looks different from the past. Gradient-boosted trees hold up
+  much better.
+- **Every model fails when the world changes.** On Elliptic, PR-AUC falls from
+  about 0.9 to under 0.3 from time step 43, the dark-market shutdown described
+  in the dataset's original paper (Weber et al., 2019), and the graph does not
+  rescue it.
+
+The propagation scores are in line with the best published tree-plus-neighbours
+results on the shared benchmarks (GADBench reports 91.1 on YelpChi and 93.3 on
+Amazon under its own split), so the graph rung is not a strawman.
 
 Play the Syn Env result instead of reading it:
 **[Find the Ring](https://rhysmiranda.github.io/graphlift/)**, a 90-second
@@ -49,20 +80,26 @@ noisy labels. Grouped 5-fold split that keeps every ring and cluster on one side
 | Own + counts | both | 0.652 ± 0.004 |
 | **Graph** | the above plus per-relation neighbour summaries and three hops of propagation | **0.737 ± 0.006** |
 
-Reports: [`synenv_balanced_s2`](results/synenv_balanced_s2.md),
-[`yelpchi`](results/yelpchi.md), [`amazon`](results/amazon.md).
+Reports: [`synenv_balanced_s2`](https://github.com/RhysMiranda/graphlift/blob/main/results/synenv_balanced_s2.md),
+[`yelpchi`](https://github.com/RhysMiranda/graphlift/blob/main/results/yelpchi.md), [`amazon`](https://github.com/RhysMiranda/graphlift/blob/main/results/amazon.md).
 
 ## Quick start
 
 ```bash
-pip install -e .
+pip install graphlift                    # or: pip install "graphlift[gnn]" for the GraphSAGE rung
 graphlift audit path/to/dataset          # full audit -> graphlift_report/
+graphlift audit path/to/dataset --gnn    # ...plus a trained GraphSAGE
 graphlift report path/to/report.json     # re-render a saved report
 graphlift index results/*.json           # one table across datasets
 ```
 
-To reproduce the YelpChi and Amazon rows, see
-[`examples/care/convert_care.py`](examples/care/convert_care.py).
+The GraphSAGE rung is plain PyTorch, with no PyTorch Geometric needed, and uses
+a GPU when one is available.
+
+To reproduce the other rows, see
+[`examples/care/convert_care.py`](https://github.com/RhysMiranda/graphlift/blob/main/examples/care/convert_care.py) (YelpChi, Amazon) and
+[`examples/elliptic/convert_elliptic.py`](https://github.com/RhysMiranda/graphlift/blob/main/examples/elliptic/convert_elliptic.py) (Elliptic).
+A dataset can also declare a past → future split; see below.
 
 A dataset is a folder of plain tables:
 
@@ -87,6 +124,9 @@ graphlift.json      what to classify and which columns are off limits
   case or cluster. Without it, graphlift uses connected components and warns
   you if one component swallows most of the graph.
 - `time` (optional): enables burst features ("these five arrived within two days").
+- `split` (optional): `"grouped"` (default) or `"temporal"`, which trains on targets
+  with `time` up to `temporal_cutoff` and tests on the rest. Override per run with
+  `--split` and `--cutoff`; pick a different config file with `--meta`.
 - `exclude`: attributes that are labels in disguise. graphlift also scans for
   ones you missed.
 
@@ -97,8 +137,9 @@ graphlift.json      what to classify and which columns are off limits
    minus the best of the other three, with its spread across seeds and a verdict:
    *graph helps*, *graph is decorative*, or *graph hurts*.
 2. **Split honesty.** How many test nodes still touch a training node, or a
-   training positive, through a shared entity, and how much a careless random
-   split would have inflated each score.
+   training positive, through a shared entity or a direct link, and how much a
+   careless random split would have inflated each score. Past → future splits
+   also get a period-by-period table.
 3. **Label leaks.** Every attribute within two hops, scored on its own. Anything
    that separates the classes almost perfectly is flagged, because it is
    probably an answer, not an observation.
@@ -119,9 +160,13 @@ graphlift.json      what to classify and which columns are off limits
   build features. Max matters because a ring hides among benign neighbours;
   mean matters because some patterns are counts.
 
-A trained GNN (GraphSAGE via PyTorch Geometric) is planned as an optional
-fourth rung. The propagation model is used first because it needs no GPU, gives
-the same answer on every machine, and is a strong graph baseline in its own right.
+- **GraphSAGE** (optional, `--gnn`) is a relation-aware GraphSAGE (Hamilton et
+  al., 2017) in plain PyTorch: three layers, each adding the mean over every
+  neighbour and the max over up to 10 sampled neighbours, separately per
+  relation. It trains full-batch with class-weighted loss and stops early on
+  held-out training targets: random groups under a grouped split, the latest
+  training periods under a past → future one. It sees exactly the features and
+  edges the other rungs see, and is scored on the same splits.
 
 ## How this relates to prior work
 
@@ -148,10 +193,12 @@ takes that result as its starting point rather than its claim. What it adds:
 - [x] Syn Env loader and first report
 - [x] YelpChi and Amazon (CARE-GNN releases), graphs with direct links and unlabelled nodes
 - [x] `graphlift index`: the cross-dataset table
-- [ ] Loaders: Elliptic, IBM AMLworld, DGraph-Fin, T-Finance
-- [ ] Optional GraphSAGE rung (PyTorch Geometric)
+- [x] Elliptic, with past → future splits and bootstrap uncertainty
+- [ ] Loaders: IBM AMLworld, DGraph-Fin, T-Finance
+- [x] Optional GraphSAGE rung (plain PyTorch, GPU when available)
+- [ ] GraphSAGE on YelpChi and Amazon (GPU run)
 - [ ] The Graph Lift Index: one table across every public fraud graph
-- [ ] PyPI release
+- [ ] PyPI release (package and release workflow ready)
 
 ## Licence
 

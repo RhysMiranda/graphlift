@@ -10,8 +10,11 @@
 | Shared-entity counts only (best non-graph) | 0.659 ± 0.007 | 0.867 ± 0.000 |
 | Own + shared-entity counts | 0.652 ± 0.004 | 0.869 ± 0.001 |
 | Graph (multi-hop) | 0.737 ± 0.006 | 0.907 ± 0.001 |
+| GraphSAGE (trained GNN) | 0.738 ± 0.001 | 0.886 ± 0.006 |
 
-**Lift: +0.078 ± 0.012 PR-AUC** (3 of 3 seeds positive). The PR-AUC floor is the prevalence, 25.8%, so compare scores within this table, not across datasets.
+**Lift: +0.078 ± 0.012 PR-AUC** (3 of 3 seeds positive). 
+
+**GraphSAGE lift: +0.078 ± 0.007 PR-AUC** (3 of 3 seeds positive). Verdict for the trained GNN: graph helps. The PR-AUC floor is the prevalence, 25.8%, so compare scores within this table, not across datasets.
 
 Out-of-fold scores, 5-fold split by declared column `group`, mean ± std over 3 seeds.
 
@@ -50,23 +53,24 @@ Each neighbour attribute alone, as max or min over 1 or 2 hops. Anything near 1.
 
 Share of each category's positives flagged when every model flags as many targets as there are positives.
 
-| Category | n | Own attributes only | Shared-entity counts only | Own + shared-entity counts | Graph (multi-hop) |
-|---|---|---|---|---|---|
-| money_mule | 125 | 0.53 | 0.90 | 0.92 | 0.95 |
-| device_farm | 106 | 0.57 | 0.64 | 0.66 | 0.70 |
-| loan_stacking | 101 | 0.27 | 0.55 | 0.60 | 0.54 |
-| identity_match | 91 | 0.57 | 0.77 | 0.78 | 0.78 |
-| phantom_employer | 86 | 0.56 | 0.56 | 0.45 | 0.77 |
-| document_reuse | 79 | 0.61 | 0.68 | 0.63 | 0.91 |
-| shell_company | 44 | 0.07 | 0.64 | 0.66 | 0.91 |
-| nested_mule | 38 | 0.50 | 0.92 | 0.92 | 0.92 |
-| legit | 36 | 0.17 | 0.14 | 0.08 | 0.03 |
-| collusion | 22 | 0.68 | 0.68 | 0.68 | 0.59 |
+| Category | n | Own attributes only | Shared-entity counts only | Own + shared-entity counts | Graph (multi-hop) | GraphSAGE (trained GNN) |
+|---|---|---|---|---|---|---|
+| money_mule | 125 | 0.53 | 0.90 | 0.92 | 0.95 | 0.91 |
+| device_farm | 106 | 0.57 | 0.64 | 0.66 | 0.70 | 0.73 |
+| loan_stacking | 101 | 0.27 | 0.55 | 0.60 | 0.54 | 0.41 |
+| identity_match | 91 | 0.57 | 0.77 | 0.78 | 0.78 | 0.65 |
+| phantom_employer | 86 | 0.56 | 0.56 | 0.45 | 0.77 | 0.97 |
+| document_reuse | 79 | 0.61 | 0.68 | 0.63 | 0.91 | 0.85 |
+| shell_company | 44 | 0.07 | 0.64 | 0.66 | 0.91 | 0.84 |
+| nested_mule | 38 | 0.50 | 0.92 | 0.92 | 0.92 | 0.95 |
+| legit | 36 | 0.17 | 0.14 | 0.08 | 0.03 | 0.03 |
+| collusion | 22 | 0.68 | 0.68 | 0.68 | 0.59 | 0.95 |
 
 ## What each model saw
 
 - Own attributes: 56 columns.
 - Shared-entity and direct-link counts: 72 columns (18 entity paths of length 1–2, plus neighbour and two-step walk counts for every relation that links targets directly).
-- Graph: 250 extra columns, mean and max neighbourhood summaries over 3 hops (SIGN-style propagation, PCA to 48 per hop, no labels used).
+- Graph: 250 extra columns, mean and max neighbourhood summaries over 3 hops (SIGN-style propagation, PCA to 48 per hop, no labels used), fed to the same gradient-boosted trees.
+- GraphSAGE: a relation-aware GraphSAGE trained end to end (3 layers, mean over all neighbours plus max over up to 10 sampled, early-stopped on held-out training targets, at most 300 epochs).
 
-Ran in 305 s.
+Ran in 1150 s.

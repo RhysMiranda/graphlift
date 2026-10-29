@@ -2,3 +2,9 @@ __pycache__/
 *.egg-info/
 runs/
 .pytest_cache/
+elliptic_bitcoin_dataset/
+elliptic_bitcoin_dataset.zip
+data/
+dist/
+build/
+raw/

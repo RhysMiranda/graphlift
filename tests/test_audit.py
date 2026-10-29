@@ -79,3 +79,24 @@ def test_direct_links_and_unlabelled_targets(tmp_path):
     assert np.isnan(r.oof["graph"][:60]).all() and not np.isnan(r.oof["graph"][60:]).any()
     assert r.metrics["graph"]["pr_auc_mean"] > r.metrics["own"]["pr_auc_mean"] + 0.05
     assert r.groups["n_groups"] == n - 60
+
+
+def test_temporal_split_trains_on_past_only(tmp_path):
+    g = load_dir(str(_write(tmp_path, structured=True)))
+    rng = np.random.default_rng(3)
+    g.nodes["app"]["t"] = rng.integers(1, 11, len(g.targets))
+    g.time, g.split, g.temporal_cutoff = "t", "temporal", 7
+    r = audit.run(g, hops=2, dim=8, verbose=False)
+    late = g.targets["t"].to_numpy() > 7
+    assert np.isnan(r.oof["graph"][~late]).all() and not np.isnan(r.oof["graph"][late]).any()
+    assert r.lift["uncertainty"] == "bootstrap" and r.lift["n_seeds"] == 200
+    assert set(r.by_time) == {"8", "9", "10"}
+
+
+def test_gnn_rung_learns_neighbourhood_signal(tmp_path):
+    import pytest
+    pytest.importorskip("torch")
+    g = load_dir(str(_write(tmp_path, structured=True)))
+    r = audit.run(g, seeds=1, folds=3, hops=2, dim=8, verbose=False, gnn=True, gnn_epochs=150)
+    assert "gnn" in r.metrics and r.gnn_lift
+    assert r.metrics["gnn"]["pr_auc_mean"] > r.metrics["own"]["pr_auc_mean"] + 0.1

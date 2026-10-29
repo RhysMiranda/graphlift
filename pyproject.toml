@@ -1,27 +1,43 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "graphlift"
-version = "0.2.0"
+version = "1.0.0"
 description = "Does your graph actually help? An audit for graph machine learning datasets."
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Rhys Miranda", email = "rhysdmiranda@gmail.com" }]
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.24", "pandas>=2.0", "scipy>=1.10", "scikit-learn>=1.3"]
-keywords = ["graph neural networks", "benchmark", "fraud detection", "evaluation", "data leakage"]
+keywords = ["graph neural networks", "graph machine learning", "benchmark", "fraud detection",
+            "anomaly detection", "evaluation", "data leakage"]
 classifiers = [
-  "License :: OSI Approved :: MIT License",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
+
+[project.urls]
+Homepage = "https://github.com/RhysMiranda/graphlift"
+Source = "https://github.com/RhysMiranda/graphlift"
+Issues = "https://github.com/RhysMiranda/graphlift/issues"
+"Find the Ring" = "https://rhysmiranda.github.io/graphlift/"
 
 [project.scripts]
 graphlift = "graphlift.cli:main"
 
 [project.optional-dependencies]
+gnn = ["torch>=2.1"]
 dev = ["pytest>=7"]
 
 [tool.setuptools.packages.find]

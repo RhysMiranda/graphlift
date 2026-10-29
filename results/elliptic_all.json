@@ -1,0 +1,293 @@
+{
+  "dataset": {
+    "name": "Elliptic (illicit Bitcoin), all features",
+    "target": "tx",
+    "n_targets": 203769,
+    "n_labelled": 46564,
+    "n_positive": 4545,
+    "prevalence": 0.09760759384932566,
+    "node_types": {
+      "tx": 203769
+    },
+    "n_edges": 234355,
+    "relations": [
+      "pays"
+    ]
+  },
+  "groups": {
+    "n_components": 49,
+    "largest_component_share": 0.03867124047328102,
+    "source": "connected components",
+    "n_groups": 49,
+    "largest_group": 7880,
+    "singleton_share": 0.0,
+    "split": "temporal: train on `time_step` <= 34 (29,894 targets), test on later (16,670 targets)"
+  },
+  "split_exposure": {
+    "test_touches_train": 0.0,
+    "test_touches_train_positive": 0.0
+  },
+  "attributes": [
+    {
+      "attribute": "tx.local_89",
+      "auc": 0.843,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "tx.local_52",
+      "auc": 0.836,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "tx.local_54",
+      "auc": 0.824,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "tx.local_04",
+      "auc": 0.822,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "tx.local_13",
+      "auc": 0.822,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "tx.local_22",
+      "auc": 0.815,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "tx.local_28",
+      "auc": 0.815,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    },
+    {
+      "attribute": "tx.agg_38",
+      "auc": 0.815,
+      "via": "own column",
+      "excluded": false,
+      "flag": false
+    }
+  ],
+  "metrics": {
+    "own": {
+      "pr_auc_mean": 0.8067798339195982,
+      "pr_auc_std": 0.01045712460222513,
+      "roc_auc_mean": 0.9429017871926205,
+      "roc_auc_std": 0.0,
+      "pr_auc_seeds": [
+        0.8067798339195982
+      ]
+    },
+    "hubs": {
+      "pr_auc_mean": 0.11944924981318254,
+      "pr_auc_std": 0.003710495920491641,
+      "roc_auc_mean": 0.6806448314618789,
+      "roc_auc_std": 0.0,
+      "pr_auc_seeds": [
+        0.11944924981318254
+      ]
+    },
+    "own+hubs": {
+      "pr_auc_mean": 0.8074178745603479,
+      "pr_auc_std": 0.010490261957649738,
+      "roc_auc_mean": 0.9439308901556989,
+      "roc_auc_std": 0.0,
+      "pr_auc_seeds": [
+        0.8074178745603479
+      ]
+    },
+    "graph": {
+      "pr_auc_mean": 0.8172926579711645,
+      "pr_auc_std": 0.009906852448296552,
+      "roc_auc_mean": 0.9532919832037979,
+      "roc_auc_std": 0.0,
+      "pr_auc_seeds": [
+        0.8172926579711645
+      ]
+    },
+    "gnn": {
+      "pr_auc_mean": 0.37905703252434886,
+      "pr_auc_std": 0.012005600968792867,
+      "roc_auc_mean": 0.889943089516141,
+      "roc_auc_std": 0.0,
+      "pr_auc_seeds": [
+        0.37905703252434886
+      ]
+    }
+  },
+  "lift": {
+    "best_baseline": "own+hubs",
+    "pr_auc_lift_mean": 0.009874783410816601,
+    "pr_auc_lift_std": 0.001872907088045944,
+    "seeds_positive": 200,
+    "n_seeds": 200,
+    "uncertainty": "bootstrap",
+    "prevalence": 0.06496700659868027,
+    "graph_over_baseline_ratio": 1.012230077784931,
+    "verdict": "graph is decorative"
+  },
+  "verdict": "graph is decorative",
+  "random_split": {
+    "pr_auc": {
+      "own+hubs": 0.9893521702495272,
+      "graph": 0.9876444874721926
+    },
+    "split_pr_auc": {
+      "own+hubs": 0.8074178745603479,
+      "graph": 0.8172926579711645
+    },
+    "test_touches_train_positive": 0.044387397945063065
+  },
+  "breakdown": {},
+  "by_time": {
+    "35": {
+      "n": 1341,
+      "positive": 182,
+      "own+hubs": 0.9922800518408184,
+      "graph": 0.9948999081292949,
+      "gnn": 0.6406670484089372
+    },
+    "36": {
+      "n": 1708,
+      "positive": 33,
+      "own+hubs": 0.9914361001317521,
+      "graph": 0.9867823630309756,
+      "gnn": 0.20475441344512613
+    },
+    "37": {
+      "n": 498,
+      "positive": 40,
+      "own+hubs": 0.8990780489541403,
+      "graph": 0.914174237123558,
+      "gnn": 0.3371741748585192
+    },
+    "38": {
+      "n": 756,
+      "positive": 111,
+      "own+hubs": 0.9574128915095211,
+      "graph": 0.9601745684274661,
+      "gnn": 0.3261651518124715
+    },
+    "39": {
+      "n": 1183,
+      "positive": 81,
+      "own+hubs": 0.9592742237743561,
+      "graph": 0.9620538259802214,
+      "gnn": 0.7103273060108012
+    },
+    "40": {
+      "n": 1211,
+      "positive": 112,
+      "own+hubs": 0.7648280454303745,
+      "graph": 0.7807053252027841,
+      "gnn": 0.4553118188285302
+    },
+    "41": {
+      "n": 1132,
+      "positive": 116,
+      "own+hubs": 0.9669960782349035,
+      "graph": 0.9638697260077398,
+      "gnn": 0.31203798414316836
+    },
+    "42": {
+      "n": 2154,
+      "positive": 239,
+      "own+hubs": 0.8926870876902899,
+      "graph": 0.8976793561007289,
+      "gnn": 0.6861419597234937
+    },
+    "43": {
+      "n": 1370,
+      "positive": 24,
+      "own+hubs": 0.0512695193973744,
+      "graph": 0.06537889432539508,
+      "gnn": 0.025273409917310544
+    },
+    "44": {
+      "n": 1591,
+      "positive": 24,
+      "own+hubs": 0.0441525556001575,
+      "graph": 0.04080193961964003,
+      "gnn": 0.032056784085442665
+    },
+    "45": {
+      "n": 1221,
+      "positive": 5,
+      "own+hubs": 0.012513894053982422,
+      "graph": 0.011748261172836713,
+      "gnn": 0.015011037757361324
+    },
+    "46": {
+      "n": 712,
+      "positive": 2,
+      "own+hubs": 0.2621951219512195,
+      "graph": 0.1781609195402299,
+      "gnn": 0.5076923076923077
+    },
+    "47": {
+      "n": 846,
+      "positive": 22,
+      "own+hubs": 0.05626309563892827,
+      "graph": 0.06716858513640532,
+      "gnn": 0.044640278370273054
+    },
+    "48": {
+      "n": 471,
+      "positive": 36,
+      "own+hubs": 0.2547087037393771,
+      "graph": 0.34721620317502566,
+      "gnn": 0.30856198620630937
+    },
+    "49": {
+      "n": 476,
+      "positive": 56,
+      "own+hubs": 0.2805437030459159,
+      "graph": 0.32964292548094126,
+      "gnn": 0.11080314851425085
+    }
+  },
+  "gnn_lift": {
+    "best_baseline": "own+hubs",
+    "pr_auc_lift_mean": -0.428360842035999,
+    "pr_auc_lift_std": 0.011929702559930134,
+    "seeds_positive": 0,
+    "n_seeds": 200,
+    "uncertainty": "bootstrap",
+    "prevalence": 0.06496700659868027,
+    "graph_over_baseline_ratio": 0.4694682201960807,
+    "verdict": "graph hurts"
+  },
+  "feature_counts": {
+    "own": 165,
+    "hubs": 4,
+    "hub_paths": 0,
+    "propagated": 806
+  },
+  "settings": {
+    "seeds": 1,
+    "folds": 5,
+    "hops": 3,
+    "dim": 48,
+    "split": "temporal",
+    "gnn": true,
+    "gnn_epochs": 300
+  },
+  "seconds": 883.1514961719513
+}

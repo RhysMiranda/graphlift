@@ -1,6 +1,6 @@
 # graphlift report: Amazon (fraudulent users)
 
-**Verdict: graph is decorative.** The best non-graph model (own + shared-entity counts) is within noise of the graph model. The structure's signal is captured by a few counts.
+**Verdict: graph is decorative.** The graph model's edge over the best non-graph model (own + shared-entity counts) is +0.005 PR-AUC, consistent but below the 0.01 that graphlift treats as a practical difference. Own columns plus neighbour and shared-entity counts capture what the graph knows.
 
 ## Does the graph help?
 
@@ -13,7 +13,7 @@
 
 **Lift: +0.005 ± 0.001 PR-AUC** (3 of 3 seeds positive). The PR-AUC floor is the prevalence, 9.5%, so compare scores within this table, not across datasets.
 
-Out-of-fold scores, 5-fold split by individual targets (no leak-free grouping exists), mean ± std over 3 seeds, on the 8,639 labelled targets of 11,944.
+Out-of-fold scores, 5-fold split by individual targets (no leak-free grouping exists), mean ± std over 3 seeds. Only the 8,639 labelled targets of 11,944 are scored.
 
 ## Is the split honest?
 

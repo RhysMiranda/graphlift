@@ -19,6 +19,15 @@ def main(argv=None):
     a.add_argument("--hops", type=int, default=3)
     a.add_argument("--dim", type=int, default=48)
     a.add_argument("--out", default=None, help="folder for report.md and report.json")
+    a.add_argument("--meta", default="graphlift.json",
+                   help="config file inside the dataset folder (default: graphlift.json)")
+    a.add_argument("--split", choices=["grouped", "temporal"], default=None,
+                   help="override the split declared in the config")
+    a.add_argument("--cutoff", type=float, default=None,
+                   help="temporal split: train on time <= this value")
+    a.add_argument("--gnn", action="store_true",
+                   help="also train a GraphSAGE (needs PyTorch: pip install graphlift[gnn])")
+    a.add_argument("--gnn-epochs", type=int, default=300)
     rp = sub.add_parser("report", help="re-render report.md from a saved report.json")
     rp.add_argument("json")
     ix = sub.add_parser("index", help="one table across several saved report.json files")
@@ -42,8 +51,13 @@ def main(argv=None):
         print(md)
         return
 
-    g = load_dir(args.path)
-    r = audit.run(g, seeds=args.seeds, folds=args.folds, hops=args.hops, dim=args.dim)
+    g = load_dir(args.path, args.meta)
+    if args.split:
+        g.split = args.split
+    if args.cutoff is not None:
+        g.temporal_cutoff = args.cutoff
+    r = audit.run(g, seeds=args.seeds, folds=args.folds, hops=args.hops, dim=args.dim,
+                  gnn=args.gnn, gnn_epochs=args.gnn_epochs)
     out = args.out or os.path.join(args.path, "graphlift_report")
     os.makedirs(out, exist_ok=True)
     md = report.to_markdown(r)

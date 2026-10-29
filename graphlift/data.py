@@ -35,6 +35,8 @@ class GraphData:
     breakdown: str | None = None
     exclude: dict[str, list[str]] = field(default_factory=dict)
     undirected: list[str] = field(default_factory=list)
+    split: str = "grouped"                 # "grouped" or "temporal"
+    temporal_cutoff: float | None = None   # temporal: train on time <= cutoff
     name: str = "graph"
 
     # Filled by `index()`.
@@ -88,9 +90,9 @@ class GraphData:
         }
 
 
-def load_dir(path: str) -> GraphData:
+def load_dir(path: str, meta_file: str = "graphlift.json") -> GraphData:
     """Read the on-disk format described at the top of this module."""
-    with open(os.path.join(path, "graphlift.json")) as f:
+    with open(os.path.join(path, meta_file)) as f:
         meta = json.load(f)
     nodes = {}
     for fn in sorted(os.listdir(os.path.join(path, "nodes"))):
@@ -101,6 +103,8 @@ def load_dir(path: str) -> GraphData:
                   group=meta.get("group"), time=meta.get("time"),
                   breakdown=meta.get("breakdown"), exclude=meta.get("exclude", {}),
                   undirected=meta.get("undirected", []),
+                  split=meta.get("split", "grouped"),
+                  temporal_cutoff=meta.get("temporal_cutoff"),
                   name=meta.get("name", os.path.basename(path.rstrip("/"))))
     for t, df in g.nodes.items():
         if "id" not in df.columns:
